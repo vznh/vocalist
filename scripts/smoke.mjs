@@ -10,7 +10,7 @@ const app = await electron.launch({ args: ['.'], env: { ...process.env, NORAE_TE
 const errors = [];
 try {
   const page = await app.firstWindow(); page.on('pageerror', error => errors.push(error.message));
-  await page.getByRole('heading', { name: 'vocalist', exact: true }).waitFor();
+  await page.getByRole('textbox', { name: 'Song URL', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => typeof window.norae?.add), 'function');
   assert.equal((await page.evaluate(() => window.norae.getSettings())).lyricsProvider, 'lrclib');
   assert.deepEqual((await page.evaluate(() => window.norae.check())).map(dep => dep.key).sort(), ['elevenlabs', 'ffmpeg', 'ytDlp']);
@@ -75,7 +75,7 @@ try {
   await page.getByRole('img', { name: 'Four-line karaoke video preview' }).waitFor();
   await page.screenshot({ path: '.runtime/stage-demo.png' });
   await page.keyboard.press('Escape');
-  await page.getByRole('heading', { name: 'vocalist', exact: true }).waitFor();
+  await page.getByRole('textbox', { name: 'Song URL', exact: true }).waitFor();
   const exportPath = path.resolve('.runtime/demo-export.mp4');
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }); }, exportPath);
   await page.getByRole('button', { name: 'Export MP4', exact: true }).click();

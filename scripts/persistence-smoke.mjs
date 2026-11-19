@@ -26,7 +26,7 @@ try {
     delete env.ELECTRON_RUN_AS_NODE;
     app = await electron.launch({ args: ['.'], env });
     const page = await app.firstWindow();
-    await page.getByRole('heading', { name: 'vocalist', exact: true }).waitFor();
+    await page.getByRole('textbox', { name: 'Song URL', exact: true }).waitFor();
     return page;
   };
   page = await launch();
