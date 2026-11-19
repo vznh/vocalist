@@ -8,7 +8,7 @@ import { exportIssue } from '../shared/timing-validation.mjs';
 import { useLegacyUpgrade } from './hooks/useLegacyUpgrade';
 
 const api = window.norae;
-const WEBSITE_URL = 'https://github.com/vznh/norae';
+const WEBSITE_URL = 'https://github.com/vznh/vocalist';
 const time = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${Math.floor(Math.max(0, seconds) % 60).toString().padStart(2, '0')}`;
 const errorText = (error: unknown) => (error as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 const statusText = { queued: 'Queued', processing: 'Preparing…', ready: 'Ready', review: 'Needs review', error: 'Failed' };
@@ -136,7 +136,7 @@ export default function App() {
       onError={() => { if (selected?.audioUrl) setError('Audio could not be played. Retry the song in Cross-check.'); }} />
 
     {!stage && sidebarOpen && <aside className="sidebar" aria-label="Sidebar">
-      <div className="sidebar-header"><h1>norae</h1></div>
+      <div className="sidebar-header"><h1><picture><source media="(prefers-color-scheme: dark)" srcSet={`${import.meta.env.BASE_URL}logo-dark.png`} /><img src={`${import.meta.env.BASE_URL}logo-light.png`} alt="Music for the Masses" /></picture></h1></div>
       <nav className="sidebar-nav" aria-label="Main">
         <button type="button" className="sidebar-item active" aria-current="page"><ListMusic size={16} /><span>Queue</span><span className="sidebar-count">{tracks.length}</span></button>
         <button type="button" className="sidebar-item" onClick={toggleStage} disabled={!selected?.audioUrl}><MonitorPlay size={16} /><span>Stage</span></button>
@@ -357,7 +357,7 @@ function LyricsRetry({ track, act }: { track: Track; act: (fn: () => Promise<unk
   return <div className="lyrics-retry">
     <span>{running ? 'Searching LRCLIB…' : state === 'error' ? 'LRCLIB lyrics unavailable' : 'No matching LRCLIB lyrics found'}</span>
     <button className="text-button" disabled={running || !supported} onClick={() => void act(() => api!.retryLyrics(track.id))}>{running ? <LoaderCircle size={14} className="spin" /> : <RotateCcw size={14} />}{running ? 'Searching lyrics…' : 'Retry lyrics'}</button>
-    {!supported && <small>Save your timing project and restart Norae to enable lyrics retry.</small>}
+    {!supported && <small>Save your timing project and restart Music for the Masses to enable lyrics retry.</small>}
   </div>;
 }
 function ReadingTiming({ track, act }: { track: Track; act: (fn: () => Promise<unknown>) => Promise<void> }) {

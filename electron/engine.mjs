@@ -56,8 +56,8 @@ export class QueueEngine extends EventEmitter {
   publish(persist = true) {
     this.emit('change', this.snapshot());
     if (persist && this.store && !this.closed) {
-      try { void this.store.save(this.tracks).catch(() => this.emit('storage-error', 'Your queue could not be saved locally. Keep Norae open and save timing projects before relaunching.')); }
-      catch { this.emit('storage-error', 'Your queue could not be saved locally. Keep Norae open and save timing projects before relaunching.'); }
+      try { void this.store.save(this.tracks).catch(() => this.emit('storage-error', 'Your queue could not be saved locally. Keep Music for the Masses open and save timing projects before relaunching.')); }
+      catch { this.emit('storage-error', 'Your queue could not be saved locally. Keep Music for the Masses open and save timing projects before relaunching.'); }
     }
   }
   add(input) {
@@ -80,7 +80,7 @@ export class QueueEngine extends EventEmitter {
     await mkdir(directory, { recursive: true });
     const audioPath = path.join(directory, 'demo.wav'); await writeDemo(audioPath);
     const lines = demoLines.map((text, i) => { const parts = text.match(/\S+\s*/g); return { text, blockStart: i === 0 || i === 4, words: parts.map((text, j) => ({ text, start: i * 4 + 3 + j * 4 / parts.length, end: i * 4 + 3 + (j + 1) * 4 / parts.length })), start: i * 4 + 3, end: i * 4 + 7, heard: '', agreement: null, review: false, timing: 'demo' }; });
-    this.tracks.push({ id, title: 'A little louder', artist: 'The Norae demo', singer: 'Everyone', duration: 30, status: 'ready', steps: { audio: { state: 'done', message: 'Original synthesized instrumental' }, lyrics: { state: 'done', message: 'Illustrative original lyrics' }, transcript: { state: 'skipped', message: 'Demo fixture · no transcription performed' }, alignment: { state: 'skipped', message: 'Illustrative word timing' } }, candidates: [], lyrics: null, transcript: [], result: { source: 'demo', timing: 'demo', agreement: null, lines, notes: ['Original instrumental and illustrative timed lyrics. This demo does not run the YouTube or transcription pipeline.'] }, audioUrl: `norae-audio://track/${id}`, audioPath, directory, error: '', demo: true, font: 'Arial', reviewed: false, export: { state: 'idle', progress: 0, message: '' } });
+    this.tracks.push({ id, title: 'A little louder', artist: 'The Music for the Masses demo', singer: 'Everyone', duration: 30, status: 'ready', steps: { audio: { state: 'done', message: 'Original synthesized instrumental' }, lyrics: { state: 'done', message: 'Illustrative original lyrics' }, transcript: { state: 'skipped', message: 'Demo fixture · no transcription performed' }, alignment: { state: 'skipped', message: 'Illustrative word timing' } }, candidates: [], lyrics: null, transcript: [], result: { source: 'demo', timing: 'demo', agreement: null, lines, notes: ['Original instrumental and illustrative timed lyrics. This demo does not run the YouTube or transcription pipeline.'] }, audioUrl: `norae-audio://track/${id}`, audioPath, directory, error: '', demo: true, font: 'Arial', reviewed: false, export: { state: 'idle', progress: 0, message: '' } });
     this.publish(); return id;
   }
   async remove(id) {

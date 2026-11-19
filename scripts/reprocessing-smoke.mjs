@@ -16,7 +16,7 @@ try {
   app.process().stderr.on('data', data => mainErrors.push(data.toString()));
   page = await app.firstWindow(); const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.getByRole('heading', { name: 'norae', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Music for the Masses', exact: true }).waitFor();
   await app.evaluate(async ({ ipcMain, BrowserWindow, protocol }, { enginePath, demoPath, audioPath, root }) => {
     const require = process.getBuiltinModule('node:module').createRequire(enginePath);
     const { QueueEngine } = require(enginePath), { writeDemo } = require(demoPath), { audioResponse } = require(audioPath);

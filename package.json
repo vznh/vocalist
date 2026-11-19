@@ -2,7 +2,7 @@
   "name": "norae",
   "version": "0.1.0",
   "private": true,
-  "description": "A local-first karaoke room with independent lyrics and transcription.",
+  "description": "Time lyrics and export karaoke videos on your Mac.",
   "type": "module",
   "main": "electron/main.mjs",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "build": {
     "appId": "app.norae.desktop",
-    "productName": "Norae",
+    "productName": "Music for the Masses",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -34,7 +34,8 @@
     },
     "extraResources": [{ "from": ".runtime/native/norae-metadata", "to": "native/norae-metadata" }],
     "mac": {
-      "category": "public.app-category.music"
+      "category": "public.app-category.music",
+      "icon": "assets/icon.png"
     }
   },
   "dependencies": {

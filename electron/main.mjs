@@ -12,7 +12,8 @@ import { configureMetadataHelper } from './metadata.mjs';
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.NORAE_DEV_URL;
 if (devUrl && !/^http:\/\/127\.0\.0\.1:\d+$/.test(devUrl)) throw new Error('Invalid development URL.');
-if (process.env.NORAE_TEST_DATA) app.setPath('userData', process.env.NORAE_TEST_DATA);
+app.setPath('userData', process.env.NORAE_TEST_DATA || path.join(app.getPath('appData'), app.isPackaged ? 'Norae' : 'norae'));
+app.setName('Music for the Masses');
 protocol.registerSchemesAsPrivileged([{ scheme: 'norae-audio', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 const hasLock = app.requestSingleInstanceLock();
 let window, engine, quitting = false;
@@ -20,6 +21,7 @@ if (!hasLock) app.quit();
 else {
   app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.focus(); } });
   app.whenReady().then(async () => {
+    if (!app.isPackaged) app.dock?.setIcon(path.join(directory, '../assets/icon.png'));
     if (app.isPackaged) configureMetadataHelper(path.join(process.resourcesPath, 'native/norae-metadata'));
     const userData = app.getPath('userData'); await mkdir(userData, { recursive: true });
     const settingsPath = path.join(userData, 'settings.json');
@@ -62,12 +64,12 @@ else {
     handle('room:cancelExport', id => engine.cancelExport(id));
     handle('room:saveProject', async id => {
       const track = selectedTrack(id);
-      const result = await dialog.showSaveDialog(window, { title: 'Save lyric timing', defaultPath: `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}.norae.json`, filters: [{ name: 'Norae timing project', extensions: ['json'] }] });
+      const result = await dialog.showSaveDialog(window, { title: 'Save lyric timing', defaultPath: `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}.norae.json`, filters: [{ name: 'Music for the Masses timing project', extensions: ['json'] }] });
       return result.canceled ? null : saveTimingProject(track, result.filePath);
     });
     handle('room:loadProject', async id => {
       const track = selectedTrack(id);
-      const result = await dialog.showOpenDialog(window, { title: 'Load lyric timing for this recording', properties: ['openFile'], filters: [{ name: 'Norae timing project', extensions: ['json'] }] });
+      const result = await dialog.showOpenDialog(window, { title: 'Load lyric timing for this recording', properties: ['openFile'], filters: [{ name: 'Music for the Masses timing project', extensions: ['json'] }] });
       if (result.canceled) return false;
       if ((await stat(result.filePaths[0])).size > 2000000) throw new Error('The timing project is too large.');
       const data = JSON.parse(await readFile(result.filePaths[0], 'utf8'));
@@ -91,13 +93,13 @@ else {
   app.on('before-quit', event => {
     if (quitting || !engine) return;
     event.preventDefault(); quitting = true;
-    engine.close().then(() => app.quit()).catch(error => { quitting = false; dialog.showErrorBox('Queue could not be saved', `${error.message}\nKeep Norae open and save timing projects before quitting.`); });
+    engine.close().then(() => app.quit()).catch(error => { quitting = false; dialog.showErrorBox('Queue could not be saved', `${error.message}\nKeep Music for the Masses open and save timing projects before quitting.`); });
   });
 }
 function createWindow() {
-  window = new BrowserWindow({ title: 'Norae', width: 1440, height: 980, minWidth: 1040, minHeight: 720, backgroundColor: '#ffffff', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 22, y: 19 }, webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
-  window.webContents.once('did-finish-load', () => console.log('Norae desktop ready · LRCLIB lyrics'));
-  window.webContents.setWindowOpenHandler(({ url }) => { if (url === 'https://github.com/vznh/norae') void shell.openExternal(url); return { action: 'deny' }; });
+  window = new BrowserWindow({ title: app.getName(), width: 1440, height: 980, minWidth: 1040, minHeight: 720, backgroundColor: '#ffffff', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 22, y: 19 }, webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
+  window.webContents.once('did-finish-load', () => console.log('Music for the Masses desktop ready · LRCLIB lyrics'));
+  window.webContents.setWindowOpenHandler(({ url }) => { if (url === 'https://github.com/vznh/vocalist') void shell.openExternal(url); return { action: 'deny' }; });
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   if (devUrl) window.loadURL(devUrl); else window.loadFile(path.join(directory, '../dist/index.html'));
