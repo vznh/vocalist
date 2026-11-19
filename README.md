@@ -131,7 +131,8 @@ Export, playback, persistence, and reprocessing checks use isolated libraries an
 | `electron/timing.mjs` | Alignment mapping and reviewer timing preparation |
 | `shared/timing-validation.mjs` | Shared reviewer validation and export readiness |
 | `shared/karaoke.mjs` | Frame drawing entry point and the four-line karaoke mode: stanza grouping, pair fades, word/syllable sweep |
-| `shared/scrolling.mjs` | Lyric Roll layout, wrapping and sweep |
+| `shared/scrolling.mjs` | Rolling mode layout, wrapping and sweep |
+| `shared/colors.mjs` | Singer colors, album palettes and color mixing |
 | `shared/karaoke-common.mjs` | Frame size, fonts and text units shared by both modes |
 | `shared/lyrics.mjs` | Reference lyric structure, transcript grouping, timing-preserving verse reflow |
 | `shared/reading-cursor.mjs` | Deterministic cue motion during lead-ins, words, held syllables, and gaps |
@@ -139,7 +140,7 @@ Export, playback, persistence, and reprocessing checks use isolated libraries an
 | `electron/main.mjs` / `preload.cjs` | Sandboxed renderer bridge, native save/load dialogs |
 | `src/App.tsx` | App state, playback and modal wiring |
 | `src/components/` | One file per component: queue, preview, cross-check, timing editor, settings, mixer |
-| `src/hooks/useQueue.ts` | Queue subscription and legacy layout persistence |
+| `src/hooks/` | Queue subscription, zoom and window focus |
 | `src/styles/` | One stylesheet per area, imported in order by `src/style.css` |
 
 The renderer has no Node integration, runs sandboxed, and uses narrow validated IPC calls. Credentials and arbitrary media paths are not exposed through track snapshots. URLs are limited to individual YouTube videos or SoundCloud tracks up to 15 minutes, with a 30-track queue limit. Mobile queue clients, automatic singing-specific syllable alignment, signed installers, and vocal separation remain future work.
