@@ -7,10 +7,12 @@ import { TrackActions } from './TrackActions';
 const statusText = { queued: 'Queued', processing: 'Preparing…', ready: '', review: 'Needs review', error: 'Failed' };
 const inLowerHalf = (event: DragEvent<HTMLDivElement>) => event.clientY >= event.currentTarget.getBoundingClientRect().top + event.currentTarget.offsetHeight / 2;
 
-type Props = { tracks: Track[]; selectedId: string | null; select: (id: string) => void; remove: (track: Track) => void; act: Act };
+type Props = {
+  tracks: Track[]; selectedId: string | null; select: (id: string) => void; remove: (track: Track) => void; act: Act;
+  shiftMode: boolean; setShiftMode: (update: (value: boolean) => boolean) => void;
+};
 
-export function QueuePanel({ tracks, selectedId, select, remove, act }: Props) {
-  const [shiftMode, setShiftMode] = useState(false);
+export function QueuePanel({ tracks, selectedId, select, remove, act, shiftMode, setShiftMode }: Props) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; after: boolean } | null>(null);
   const drop = (event: DragEvent<HTMLDivElement>, track: Track) => {

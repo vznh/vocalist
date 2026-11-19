@@ -44,6 +44,7 @@ export default function App() {
   const [stage, setStage] = useState(false);
   const [mode, setMode] = useState<LyricsMode>(() => localStorage.getItem(MODE_KEY) === 'scrolling' ? 'scrolling' : 'karaoke');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [shiftMode, setShiftMode] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [mediaDuration, setMediaDuration] = useState({ source: '', seconds: 0 });
@@ -144,7 +145,7 @@ export default function App() {
         {!api && <p className="notice">Open the desktop app with <code>npm run dev</code> to queue songs.</p>}
         {needsSetup && <button className="setup-notice" onClick={() => setSettingsOpen(true)}>Tools or API credentials need setup <span>Open settings</span></button>}
         <div className="workspace">
-          <QueuePanel tracks={tracks} selectedId={selectedId} select={select} remove={remove} act={act} />
+          <QueuePanel tracks={tracks} selectedId={selectedId} select={select} remove={remove} act={act} shiftMode={shiftMode} setShiftMode={setShiftMode} />
           <section className="song-panel" aria-label="Lyrics">
             {selected ? <>
               <SongHeader track={selected} mode={mode} setMode={changeMode} exportBlocker={exportBlocker} sync={mix.lyrics} act={act}
