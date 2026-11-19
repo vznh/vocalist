@@ -5,6 +5,7 @@ import { createCanvas } from '@napi-rs/canvas';
 import { drawKaraoke } from '../../shared/karaoke.mjs';
 import { READING_BAR_OPACITY } from '../../shared/reading-cursor.mjs';
 import { run } from '../../electron/process.mjs';
+import { lyricsPosition } from '../../electron/video.mjs';
 
 export const probe = async file => JSON.parse(await run('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file]));
 
@@ -23,10 +24,10 @@ export async function assertFastStart(output) {
   assert.equal(file.subarray(moov.offset, moov.offset + moov.size).includes(Buffer.from('elst')), false);
 }
 
-export async function assertEncodedFramesMatchPreview(output, lines, duration, positions) {
+export async function assertEncodedFramesMatchPreview(output, lines, duration, positions, sync = 0) {
   const canvas = createCanvas(1920, 1080), ctx = canvas.getContext('2d');
   for (const position of positions) {
-    drawKaraoke(ctx, lines, position, duration, { font: 'Arial' });
+    drawKaraoke(ctx, lines, lyricsPosition(position, sync), duration, { font: 'Arial' });
     const expected = ctx.getImageData(0, 0, 1920, 1080).data, actual = await decodedFrame(output, Math.round(position * 30));
     const coverPixel = (950 * 1920 + 1800) * 3;
     assert.ok(actual[coverPixel] > 210 && actual[coverPixel + 1] < 65 && actual[coverPixel + 2] < 80, 'Cover is visible in the lower right of the encoded frame');

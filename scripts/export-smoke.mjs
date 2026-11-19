@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
 import { QueueEngine } from '../electron/engine.mjs';
+import { DEFAULT_SYNC } from '../shared/karaoke.mjs';
 import { assertEncodedFramesMatchPreview, assertFastStart, decodedFrame, probe } from './lib/mp4.mjs';
 
 const userData = await mkdtemp(path.join(os.tmpdir(), 'norae-export-desktop-'));
@@ -84,7 +85,7 @@ try {
   assert.ok(Math.abs(Number(media.format.duration) - 6) < .15);
   assert.ok(Math.abs(Number(video.start_time) - Number(audio.start_time)) < 1 / 30, `Audio/video starts must agree within a frame: video=${video.start_time}, audio=${audio.start_time}`);
   await assertFastStart(output);
-  await assertEncodedFramesMatchPreview(output, lines, 6, [.5, 1.3, 2.2, 3.7]);
+  await assertEncodedFramesMatchPreview(output, lines, 6, [.5, 1.3, 2.2, 3.7], DEFAULT_SYNC);
   const mode = page.getByRole('button', { name: 'Mode', exact: true });
   await mode.click();
   await page.getByRole('menuitemradio', { name: 'Rolling', exact: true }).click();
