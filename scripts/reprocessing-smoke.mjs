@@ -90,7 +90,8 @@ try {
     return false;
   });
   await page.getByRole('slider', { name: 'Playback position' }).fill('1.8'); await hasBar(); await verifyFit();
-  await page.getByRole('button', { name: 'Cross-check', exact: false }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Cross-check/ }).click();
   await page.getByRole('button', { name: 'Retry processing', exact: true }).click();
   const alignmentDeadline = Date.now() + 30000;
   while (true) {

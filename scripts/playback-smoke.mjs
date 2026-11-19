@@ -63,7 +63,8 @@ try {
   assert.equal(Number(await slider.getAttribute('max')), 30);
   await slider.fill('20');
   await page.waitForFunction(() => Math.abs(document.querySelector('audio').currentTime - 20) < .1);
-  await page.getByRole('button', { name: 'Edit timing', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Edit timing/ }).click();
   const reviewer = page.getByRole('slider', { name: 'Reviewer playback position', exact: true });
   await reviewer.fill('5');
   await page.waitForFunction(() => Math.abs(document.querySelector('audio').currentTime - 5) < .1 && Number(document.querySelector('[aria-label="Playback position"]').value) === 5);

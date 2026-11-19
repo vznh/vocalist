@@ -1,9 +1,10 @@
 import { useAudioMixer } from './useAudioMixer';
+import UpdateControl from './UpdateControl';
 import { featuredArtistFor, primaryArtistFor } from '../shared/artist-credit.mjs';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronDown, Expand, Globe, ListMusic, LoaderCircle, MonitorPlay, MoreHorizontal, PanelLeft, Pause, Play, Plus, RotateCcw, Settings2, SkipForward, Trash2, Volume2, X } from 'lucide-react';
-import type { Dependency, LyricLine, Settings, Track } from './types';
-import { drawKaraoke, VIDEO_WIDTH, VIDEO_HEIGHT, fonts, unitsFor, displayLyricText, hasCompleteWordTiming, type LyricsMode } from '../shared/karaoke.mjs';
+import { ArrowDown, ArrowUp, Check, Expand, Globe, LoaderCircle, MoreHorizontal, PanelLeft, Pause, Play, Plus, RotateCcw, Settings2, SkipForward, Trash2, Volume2, X } from 'lucide-react';
+import type { Dependency, ExportFormat, LyricLine, Settings, Track } from './types';
+import { drawKaraoke, extractAlbumColors, lerpHexColor, VIDEO_WIDTH, VIDEO_HEIGHT, fonts, DEFAULT_FONT, unitsFor, displayLyricText, hasCompleteWordTiming, type LyricsMode } from '../shared/karaoke.mjs';
 import { groupTranscriptLines, lyricSections, reflowLyrics } from '../shared/lyrics.mjs';
 import { exportIssue } from '../shared/timing-validation.mjs';
 import { useLegacyUpgrade } from './hooks/useLegacyUpgrade';
@@ -34,6 +35,35 @@ export default function App() {
   const [stage, setStage] = useState(false);
   const [mode, setMode] = useState<LyricsMode>(() => localStorage.getItem('vocalist:lyrics-mode') === 'scrolling' ? 'scrolling' : 'karaoke');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [shiftMode, setShiftMode] = useState(false);
+  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
+  useEffect(() => {
+    const onFocus = () => setWindowFocused(true);
+    const onBlur = () => setWindowFocused(false);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    return () => { window.removeEventListener('focus', onFocus); window.removeEventListener('blur', onBlur); };
+  }, []);
+  const [zoom, setZoom] = useState(1);
+  const [zoomHud, setZoomHud] = useState(false);
+  const zoomTimer = useRef<number | undefined>(undefined);
+  const updateZoom = (next: number) => {
+    const clamped = Math.min(2, Math.max(0.5, Math.round(next * 10) / 10));
+    setZoom(clamped);
+    setZoomHud(true);
+    window.clearTimeout(zoomTimer.current);
+    zoomTimer.current = window.setTimeout(() => setZoomHud(false), 2000);
+  };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key === '=' || event.key === '+') { event.preventDefault(); updateZoom(zoom + 0.1); }
+      else if (event.key === '-') { event.preventDefault(); updateZoom(zoom - 0.1); }
+      else if (event.key === '0') { event.preventDefault(); updateZoom(1); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [zoom]);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [mediaDuration, setMediaDuration] = useState({ source: '', seconds: 0 });
@@ -123,7 +153,9 @@ export default function App() {
     setMediaDuration({ source: selected?.audioUrl || '', seconds: Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0 });
   };
   const lyricPosition = Math.max(0, position - mix.lyrics);
-  const activeIndex = selected?.result?.lines.findIndex(line => line.start !== null && line.end !== null && lyricPosition >= line.start && lyricPosition < line.end) ?? -1;
+  // Overlapping verses are all current, so every line singing now lights up.
+  const activeIndices = selected?.result?.lines.flatMap((line, index) => line.start !== null && line.end !== null && lyricPosition >= line.start && lyricPosition < line.end ? [index] : []) ?? [];
+  const activeIndex = activeIndices.at(-1) ?? -1;
   const total = mediaDuration.source === selected?.audioUrl && mediaDuration.seconds > 0 ? mediaDuration.seconds : selected?.duration || 0;
   const canSeek = Boolean(selected?.audioUrl && mediaDuration.source === selected.audioUrl && mediaDuration.seconds > 0);
   const needsSetup = dependencies.some(dep => !dep.ok && !dep.optional);
@@ -134,7 +166,7 @@ export default function App() {
   const releaseDetails = [selected?.album || selected?.lyrics?.album, selected?.releaseYear].filter(Boolean).join(', ');
   const exportWarning = selected?.audioUrl && selected.export.state !== 'running' ? exportBlocker : null;
 
-  return <div className={`app ${!sidebarOpen && !stage ? 'sidebar-collapsed' : ''}`}>
+  return <div className={`app ${!sidebarOpen && !stage ? 'sidebar-collapsed' : ''}`} style={{ ['--app-zoom' as string]: zoom }}>
     {upgradeMessage && <div className="upgrade-overlay" role="status"><LoaderCircle className="spin" size={24} /><p>{upgradeMessage}</p></div>}
     <audio ref={audio} crossOrigin="anonymous" src={selected?.audioUrl || undefined}
       onLoadedMetadata={event => updateDuration(event.currentTarget)} onDurationChange={event => updateDuration(event.currentTarget)}
@@ -147,16 +179,24 @@ export default function App() {
 
     {!stage && sidebarOpen && <aside className="sidebar" aria-label="Sidebar">
       <nav className="sidebar-nav" aria-label="Main">
-        <button type="button" className="sidebar-item active" aria-current="page"><ListMusic size={16} /><span>Queue</span><span className="sidebar-count">{tracks.length}</span></button>
-        <button type="button" className="sidebar-item" onClick={toggleStage} disabled={!selected?.audioUrl}><MonitorPlay size={16} /><span>Stage</span></button>
+        <button type="button" className="sidebar-item active" aria-current="page"><span>Queue</span><span className="sidebar-count">{tracks.length}</span></button>
+        <button type="button" className="sidebar-item" onClick={toggleStage} disabled={!selected?.audioUrl}><span>Stage</span></button>
       </nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">
         <button type="button" className="sidebar-icon" aria-label="Settings" title="Settings" onClick={() => setSettingsOpen(true)} disabled={!api}><Settings2 size={16} /></button>
         <a className="sidebar-icon" href={WEBSITE_URL} target="_blank" rel="noreferrer" aria-label="Website" title="Website"><Globe size={16} /></a>
+        <UpdateControl />
       </div>
     </aside>}
-    {!stage && <button type="button" className="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={16} /></button>}
+    {!stage && <button type="button" className={`sidebar-toggle ${!windowFocused ? 'window-unfocused' : ''}`} style={{ zoom: 1 / zoom }} aria-label="Toggle sidebar" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(open => !open)}><PanelLeft size={16} /></button>}
+    {zoomHud && <div className="zoom-pill" style={{ zoom: 1 / zoom }} role="status" aria-label="Zoom level" onMouseEnter={() => window.clearTimeout(zoomTimer.current)} onMouseLeave={() => { zoomTimer.current = window.setTimeout(() => setZoomHud(false), 1200); }}>
+      <strong>{Math.round(zoom * 100)}%</strong>
+      <button type="button" aria-label="Zoom out" disabled={zoom <= 0.5} onClick={() => updateZoom(zoom - 0.1)}>−</button>
+      <button type="button" aria-label="Zoom in" disabled={zoom >= 2} onClick={() => updateZoom(zoom + 0.1)}>+</button>
+      <span className="zoom-divider" aria-hidden="true" />
+      <button type="button" className="zoom-reset" disabled={zoom === 1} onClick={() => updateZoom(1)}>Reset</button>
+    </div>}
     {!stage && !sidebarOpen && <button type="button" className="sidebar-toggle stage-toggle" aria-label="Stage" title="Stage" onClick={toggleStage} disabled={!selected?.audioUrl}><StageIcon /></button>}
     <div className="content">
     {!stage ? <main className="main">
@@ -165,7 +205,7 @@ export default function App() {
         {needsSetup && <button className="setup-notice" onClick={() => setSettingsOpen(true)}>Tools or API credentials need setup <span>Open settings</span></button>}
         <div className="workspace">
           <section className="queue-panel" aria-label="Song queue">
-            <h2>Queue <span>{tracks.length}</span></h2>
+            <h2>Queue <span className="queue-total">{tracks.length}</span><div className="queue-tools"><button type="button" className="text-button" aria-pressed={shiftMode} onClick={() => setShiftMode(value => !value)}>Shift</button><button type="button" className="text-button" disabled={!tracks.length} onClick={() => { if (window.confirm(`Clear all ${tracks.length} queued songs? Saved timing projects stay on disk.`)) void act(() => api!.clearQueue()); }}>Clear</button></div></h2>
             <div className="queue-list">
               {!tracks.length && <p className="empty-queue">No songs queued.</p>}
               {tracks.map((track, i) => <div key={track.id} draggable onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', track.id); setDraggedId(track.id); }} onDragOver={event => { if (!draggedId) return; event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setDropTarget({ id: track.id, after: event.clientY >= event.currentTarget.getBoundingClientRect().top + event.currentTarget.offsetHeight / 2 }); }} onDrop={event => { event.preventDefault(); const id = draggedId; if (!id) return; const source = tracks.findIndex(row => row.id === id); const target = tracks.findIndex(row => row.id === track.id); if (source < 0 || target < 0) return; const after = event.clientY >= event.currentTarget.getBoundingClientRect().top + event.currentTarget.offsetHeight / 2; const index = target + (after ? 1 : 0); const targetIndex = source < index ? index - 1 : index; void act(() => api!.reorder(id, targetIndex)); }} onDragEnd={() => { setDraggedId(null); setDropTarget(null); }} className={`queue-row ${selectedId === track.id ? 'selected' : ''} ${draggedId === track.id ? 'dragging' : ''} ${dropTarget?.id === track.id ? dropTarget.after ? 'drop-after' : 'drop-before' : ''}`}>
@@ -177,6 +217,7 @@ export default function App() {
                     {!['You', 'Everyone'].includes(track.singer) && <small>{track.singer}</small>}
                   </span>
                 </button>
+                {shiftMode && <div className="shift-buttons"><button type="button" className="icon-button" aria-label={`Shift ${track.title} earlier`} disabled={i === 0} onClick={() => void act(() => api!.move(track.id, -1))}><ArrowUp size={14} /></button><button type="button" className="icon-button" aria-label={`Shift ${track.title} later`} disabled={i === tracks.length - 1} onClick={() => void act(() => api!.move(track.id, 1))}><ArrowDown size={14} /></button></div>}
                 <TrackActions track={track} index={i} count={tracks.length}
                   move={direction => void act(() => api!.move(track.id, direction))}
                   remove={() => { if (track.id === selectedId) audio.current?.pause(); void act(() => api!.remove(track.id)); }} />
@@ -194,12 +235,18 @@ export default function App() {
                   {releaseDetails && <p className="song-release">{releaseDetails}</p>}
                 </div>
                 <div className="song-tools">
-                  <button className="text-button" onClick={() => void act(() => api!.chooseCover(selected.id))}>{selected.artwork ? 'Change cover' : 'Add cover'}</button>
-                  <ModeButton mode={mode} disabled={selected.export.state === 'running'} onChange={nextMode => { setMode(nextMode); localStorage.setItem('vocalist:lyrics-mode', nextMode); }} />
+                  <MenuButton label="Mode" title={`Lyrics mode: ${modeChoices.find(choice => choice.id === mode)?.label}`} disabled={selected.export.state === 'running'}
+                    groups={[{ items: modeChoices.map(choice => ({ id: choice.id, label: choice.label, checked: mode === choice.id, onSelect: () => { setMode(choice.id); localStorage.setItem('vocalist:lyrics-mode', choice.id); } })) }]} />
                   <button className="text-button" disabled={!selected.audioUrl} onClick={() => { setMixerOpen(true); void act(enableMixer); }}>Mixer</button>
-                  <button className="text-button" onClick={() => setReviewOpen(true)}>Cross-check</button>
-                  <button className="text-button" disabled={!selected.audioUrl || selected.status === 'processing' || selected.status === 'queued' || selected.export.state === 'running'} onClick={() => setTimingOpen(true)}>Edit timing</button>
-                  <button className="text-button" title={exportBlocker || 'Export 1920×1080 MP4 in the selected mode'} disabled={Boolean(exportBlocker)} onClick={() => void act(() => api!.exportVideo(selected.id, mode))}>Export MP4</button>
+                  <MenuButton label="Review" disabled={selected.export.state === 'running'}
+                    groups={[{ items: [
+                      { id: 'cross-check', label: 'Cross-check', hint: 'Compare sources and fix mismatches', onSelect: () => setReviewOpen(true) },
+                      { id: 'timing', label: 'Edit timing', hint: 'Adjust lyric start and end times', disabled: !selected.audioUrl || ['processing', 'queued'].includes(selected.status), onSelect: () => setTimingOpen(true) },
+                    ] }]} />
+                  <MenuButton label="Export" title={exportBlocker || 'Export in the selected lyrics mode'} disabled={Boolean(exportBlocker)}
+                    groups={['Video', 'Lyrics file'].map(name => ({ name, items: exportChoices.filter(choice => choice.group === name).map(choice => ({
+                      id: choice.id, label: choice.label, hint: choice.hint, onSelect: () => void act(() => api!.exportVideo(selected.id, mode, choice.id)),
+                    })) }))} />
                 </div>
               </div>
               <div className="song-warnings">
@@ -209,12 +256,12 @@ export default function App() {
               </div>
               <LyricsRetry track={selected} act={act} />
               {selected.result?.lines.length ? <div className="song-preview">
-                <KaraokePreview track={selected} position={lyricPosition} mode={mode} />
-                <section className="all-lyrics" aria-label="All lyrics"><h3>All lyrics</h3><Lyrics track={selected} activeIndex={activeIndex} onSeek={time => seek(time + mix.lyrics)} /></section>
-              </div> : <Lyrics track={selected} activeIndex={activeIndex} onSeek={time => seek(time + mix.lyrics)} />}
+                <section className="video-column" aria-label="Video"><h3>Video</h3><KaraokePreview track={selected} position={lyricPosition} mode={mode} /></section>
+                <section className="all-lyrics" aria-label="All lyrics"><h3>All lyrics</h3><Lyrics track={selected} activeIndices={activeIndices} onSeek={time => seek(time + mix.lyrics)} /></section>
+              </div> : <Lyrics track={selected} activeIndices={activeIndices} onSeek={time => seek(time + mix.lyrics)} />}
               {selected.lyrics?.copyright && <p className="source-note">{selected.lyrics.copyright}</p>}
               {selected.export.state !== 'idle' && <div className="export-status" role="status">{selected.export.message}{selected.export.state === 'running' && <><progress aria-label="MP4 export progress" max="100" value={selected.export.progress} />{selected.export.progress}% <button onClick={() => void act(() => api!.cancelExport(selected.id))}>Cancel export</button></>}</div>}
-            </> : <div className="empty-state room-empty"><h2>Add a song.</h2><p>Lyrics will appear here.</p></div>}
+            </> : <p className="empty-queue">Nothing in queue.</p>}
           </section>
         </div>
       </main> : <main className="stage">
@@ -233,7 +280,6 @@ export default function App() {
     </div>
     {error && <div className="toast" role="alert"><span>{error}</span><IconButton label="Dismiss notification" onClick={() => setError('')}><X size={16} /></IconButton></div>}
     {mixerOpen && <Modal title="Mixer" close={() => setMixerOpen(false)} className="mixer-modal">
-      <p className="mixer-note">Adjust playback while you listen.</p>
       {mixerControls.map(control => <label className="mixer-row" key={control.key}>
         <span>{control.label}</span>
         <input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={mix[control.key]}
@@ -258,12 +304,11 @@ export default function App() {
       </div>}
       {voiceState === 'error' && <p className="mixer-note" role="status">Voice tracks could not load. The original mix is playing.</p>}
       {selected?.voiceMix === 'ready' && voiceState === 'loading' && <p className="mixer-note" role="status">Loading voice tracks…</p>}
-      <p className="mixer-note">A positive lyrics offset delays the highlight.</p>
       <button className="text-button mixer-reset" type="button" onClick={() => { setMix({ bass: 0, treble: 0, lyrics: 0 }); setVoice(100); }}>Reset mixer</button>
     </Modal>}
     {reviewOpen && selected && <Modal title="Cross-check" close={() => setReviewOpen(false)} className="review-modal"><Review track={selected} act={act} onSettings={() => { setReviewOpen(false); setSettingsOpen(true); }} /></Modal>}
     {timingOpen && selected && <Modal title="Edit timing" close={() => { if (!timingDirty || window.confirm('Discard the unsaved timing changes?')) { setTimingOpen(false); setTimingDirty(false); } }} className="timing-modal"><TimingEditor track={selected} mode={mode} duration={total} canSeek={canSeek} position={position} playing={playing} play={play} seek={seek} dirtyChanged={setTimingDirty} /></Modal>}
-    {settingsOpen && <SettingsModal close={() => setSettingsOpen(false)} checked={setDependencies} loadDemo={async () => {
+    {settingsOpen && <SettingsModal track={selected} act={act} close={() => setSettingsOpen(false)} checked={setDependencies} loadDemo={async () => {
       const id = await api!.demo(); select(id); setSettingsOpen(false);
     }} />}
   </div>;
@@ -313,18 +358,28 @@ function TrackActions({ track, index, count, move, remove }: { track: Track; ind
   </div>;
 }
 
-function Lyrics({ track, activeIndex, onSeek }: { track: Track; activeIndex: number; onSeek: (time: number) => void }) {
+function Lyrics({ track, activeIndices, onSeek }: { track: Track; activeIndices: number[]; onSeek: (time: number) => void }) {
+  const activeIndex = activeIndices.at(-1) ?? -1;
   const active = useRef<HTMLButtonElement>(null);
-  useEffect(() => { active.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [activeIndex]);
-  if (!track.result?.lines.length) {
-    const message = track.status === 'processing' ? 'Preparing lyrics…' : track.status === 'queued' ? 'Waiting to prepare.' : track.status === 'error' ? 'Could not prepare this song.' : 'No lyrics found.';
-    return <div className="empty-state">{track.status === 'processing' && <LoaderCircle size={20} className="spin" />}<p>{message}</p>{!['processing', 'queued'].includes(track.status) && <small>Open Cross-check for details.</small>}</div>;
+  const [displayed, setDisplayed] = useState(track);
+  const [fadingOut, setFadingOut] = useState(false);
+  useEffect(() => {
+    if (track.id === displayed.id) { setDisplayed(track); return; }
+    setFadingOut(true);
+    const swapTimer = window.setTimeout(() => { setDisplayed(track); setFadingOut(false); }, 400);
+    return () => window.clearTimeout(swapTimer);
+  }, [track, displayed.id]);
+  useEffect(() => { active.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [activeIndex, displayed.id]);
+  if (!displayed.result?.lines.length) {
+    const message = displayed.status === 'processing' ? 'Preparing lyrics…' : displayed.status === 'queued' ? 'Waiting to prepare.' : displayed.status === 'error' ? 'Could not prepare this song.' : 'No lyrics found.';
+    return <div className={`empty-state ${fadingOut ? 'lyrics-fading-out' : 'lyrics-fading-in'}`}>{displayed.status === 'processing' && <LoaderCircle size={20} className="spin" />}<p>{message}</p>{!['processing', 'queued'].includes(displayed.status) && <small>Open Cross-check for details.</small>}</div>;
   }
-  return <div className="lyric-list" style={{ fontFamily: `"${track.font || 'Arial'}", sans-serif` }}>{lyricSections(track.result.lines).map((section, sectionIndex) => <section className="lyric-verse" key={sectionIndex} aria-label={section.label || `Lyric section ${sectionIndex + 1}`}>
+  const current = new Set(displayed.id === track.id ? activeIndices : []);
+  return <div className={`lyric-list ${fadingOut ? 'lyrics-fading-out' : 'lyrics-fading-in'}`} style={{ fontFamily: `"${displayed.font || DEFAULT_FONT}", sans-serif` }}>{lyricSections(displayed.result.lines).map((section, sectionIndex) => <section className="lyric-verse" key={sectionIndex} aria-label={section.label || `Lyric section ${sectionIndex + 1}`}>
     {section.label && <h3>{section.label}</h3>}
-    {section.indices.map(i => { const line = track.result!.lines[i]; return <button
+    {section.indices.map(i => { const line = displayed.result!.lines[i]; return <button
     ref={i === activeIndex ? active : undefined} key={i}
-    className={`lyric-line ${i === activeIndex ? 'current' : ''}`}
+    className={`lyric-line ${current.has(i) ? 'current' : ''}`}
     title={line.start === null ? 'Timing unavailable' : `Seek to ${time(line.start)}`}
     disabled={line.start === null} onClick={() => line.start !== null && onSeek(line.start)}>{displayLyricText(line.text)}</button>; })}
   </section>)}</div>;
@@ -340,44 +395,134 @@ const modeChoices = [
   { id: 'scrolling', label: 'Rolling' },
 ] as const;
 
-function ModeButton({ mode, disabled, onChange }: { mode: LyricsMode; disabled: boolean; onChange: (mode: LyricsMode) => void }) {
+const exportChoices: { id: ExportFormat; label: string; hint: string; group: 'Video' | 'Lyrics file' }[] = [
+  { id: 'mp4', label: 'MP4', hint: '1080p video', group: 'Video' },
+  { id: 'webm', label: 'WebM', hint: 'Smaller video file', group: 'Video' },
+  { id: 'gif', label: 'Animated GIF', hint: 'No audio, short clips', group: 'Video' },
+  { id: 'lrc', label: 'LRC lyrics', hint: 'Synced lyric lines', group: 'Lyrics file' },
+  { id: 'srt', label: 'SRT subtitles', hint: 'Timed captions', group: 'Lyrics file' },
+];
+
+type MenuItem = { id: string; label: string; hint?: string; checked?: boolean; disabled?: boolean; onSelect: () => void };
+
+function MenuButton({ label, title, disabled = false, groups, className = '' }: {
+  label: string; title?: string; disabled?: boolean; groups: { name?: string; items: MenuItem[] }[]; className?: string;
+}) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const close = () => { setOpen(false); trigger.current?.focus(); };
-  return <div className="mode-control" onBlur={event => {
+  const close = (restoreFocus = true) => { setOpen(false); if (restoreFocus) trigger.current?.focus(); };
+  return <div className={`menu-control ${className}`} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
   }} onKeyDown={event => {
     if (event.key === 'Escape' && open) { event.stopPropagation(); close(); }
   }}>
-    <button ref={trigger} type="button" className="text-button" aria-expanded={open && !disabled} disabled={disabled}
-      title={modeChoices.find(choice => choice.id === mode)?.label} onClick={() => setOpen(!open)}>Mode <ChevronDown size={13} /></button>
-    {open && !disabled && <div className="track-menu mode-options" role="group" aria-label="Lyrics mode">
-      {modeChoices.map(choice => <button type="button" key={choice.id} aria-pressed={mode === choice.id}
-        onClick={() => { onChange(choice.id); close(); }}>{choice.label}{mode === choice.id && <Check size={14} aria-hidden="true" />}</button>)}
+    <button ref={trigger} type="button" className="text-button" aria-expanded={open && !disabled} aria-haspopup="menu" disabled={disabled}
+      title={title || label} onClick={() => setOpen(!open)}>{label}</button>
+    {open && !disabled && <div className="track-menu menu-options" role="menu" aria-label={label}>
+      {groups.map(group => <div className="menu-group" key={group.name || 'items'} role="group" aria-label={group.name}>
+        {group.name && <p className="menu-group-label">{group.name}</p>}
+        {group.items.map(item => <button type="button" role="menuitemradio" key={item.id} aria-checked={item.checked} disabled={item.disabled}
+          onClick={() => { item.onSelect(); close(); }}><span className="menu-copy">{item.label}{item.hint && <small>{item.hint}</small>}</span>{item.checked && <Check size={14} aria-hidden="true" />}</button>)}
+      </div>)}
     </div>}
   </div>;
 }
 
+const DEFAULT_SCROLL_COLORS: [string, string] = ['#303635', '#303635'];
+
 function KaraokePreview({ track, position, mode }: { track: Track; position: number; mode: LyricsMode }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [cover, setCover] = useState<HTMLImageElement>();
-  const font = track.font || 'Arial';
+  const [transition, setTransition] = useState<{
+    shownTrack: Track;
+    shownCover?: HTMLImageElement;
+    lyricsOpacity: number;
+    albumColors: [string, string] | null;
+  }>(() => ({ shownTrack: track, lyricsOpacity: 1, albumColors: null }));
+  const currentColorsRef = useRef<[string, string]>(DEFAULT_SCROLL_COLORS);
+  const shownTrackRef = useRef<Track>(track);
+  const shownCoverRef = useRef<HTMLImageElement | undefined>(undefined);
+
   useEffect(() => {
-    if (!track.artwork) return;
+    if (!track.artwork) { setCover(undefined); return; }
     const image = new Image();
     image.onload = () => setCover(image);
     image.src = track.artwork;
     return () => { image.onload = null; };
   }, [track.artwork]);
+
+  const activeCover = track.artwork ? (cover?.src === track.artwork ? cover : undefined) : undefined;
+  const coverReady = !track.artwork || Boolean(activeCover);
+
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
-    if (ctx) drawKaraoke(ctx, track.result?.lines || [], position, track.duration, { font, mode, copyright: track.lyrics?.copyright || '', artwork: cover?.src === track.artwork ? cover : undefined });
-  }, [track.result, position, track.duration, font, mode, track.lyrics?.copyright, track.artwork, cover]);
+    if (!ctx) return;
+    if (track.id === shownTrackRef.current.id) {
+      shownTrackRef.current = track;
+      shownCoverRef.current = activeCover;
+      const colors = extractAlbumColors(ctx, activeCover) || DEFAULT_SCROLL_COLORS;
+      currentColorsRef.current = colors;
+      setTransition({ shownTrack: track, shownCover: activeCover, lyricsOpacity: 1, albumColors: colors });
+      return;
+    }
+    if (!coverReady) return;
+    const fromColors = currentColorsRef.current;
+    const toColors = extractAlbumColors(ctx, activeCover) || DEFAULT_SCROLL_COLORS;
+    const fromTrack = shownTrackRef.current;
+    const fromCover = shownCoverRef.current;
+    const fadeOutMs = 160, colorMs = 200, fadeInMs = 160;
+    const start = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const elapsed = now - start;
+      if (elapsed < fadeOutMs) {
+        const t = elapsed / fadeOutMs;
+        setTransition({ shownTrack: fromTrack, shownCover: fromCover, lyricsOpacity: 1 - t, albumColors: fromColors });
+        frame = requestAnimationFrame(step);
+      } else if (elapsed < fadeOutMs + colorMs) {
+        const t = (elapsed - fadeOutMs) / colorMs;
+        const blended: [string, string] = [lerpHexColor(fromColors[0], toColors[0], t), lerpHexColor(fromColors[1], toColors[1], t)];
+        currentColorsRef.current = blended;
+        setTransition({ shownTrack: track, shownCover: activeCover, lyricsOpacity: 0, albumColors: blended });
+        frame = requestAnimationFrame(step);
+      } else if (elapsed < fadeOutMs + colorMs + fadeInMs) {
+        const t = (elapsed - fadeOutMs - colorMs) / fadeInMs;
+        currentColorsRef.current = toColors;
+        shownTrackRef.current = track;
+        shownCoverRef.current = activeCover;
+        setTransition({ shownTrack: track, shownCover: activeCover, lyricsOpacity: t, albumColors: toColors });
+        frame = requestAnimationFrame(step);
+      } else {
+        currentColorsRef.current = toColors;
+        shownTrackRef.current = track;
+        shownCoverRef.current = activeCover;
+        setTransition({ shownTrack: track, shownCover: activeCover, lyricsOpacity: 1, albumColors: toColors });
+      }
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [track, activeCover, coverReady]);
+
+  useEffect(() => {
+    const ctx = canvas.current?.getContext('2d');
+    if (!ctx) return;
+    const active = transition.shownTrack;
+    const pos = active.id === track.id ? position : 0;
+    drawKaraoke(ctx, active.result?.lines || [], pos, active.duration, {
+      font: active.font || DEFAULT_FONT,
+      mode,
+      copyright: active.lyrics?.copyright || '',
+      artwork: transition.shownCover,
+      lyricsOpacity: transition.lyricsOpacity,
+      albumColors: transition.albumColors,
+    });
+  }, [transition, position, mode, track.id]);
+
   return <div className="karaoke-viewport"><canvas ref={canvas} className="karaoke-preview" width={VIDEO_WIDTH} height={VIDEO_HEIGHT} aria-label={mode === 'karaoke' ? 'Four-line karaoke video preview' : 'Rolling video preview'} role="img" /></div>;
 }
 function TimingEditor({ track, mode, duration, canSeek, position, playing, play, seek, dirtyChanged }: { track: Track; mode: LyricsMode; duration: number; canSeek: boolean; position: number; playing: boolean; play: () => void; seek: (position: number) => void; dirtyChanged: (dirty: boolean) => void }) {
   const [lines, setLines] = useState<LyricLine[]>(() => structuredClone(track.result?.lines || []));
-  const [index, setIndex] = useState(0), [font, setFont] = useState(track.font || 'Arial');
+  const [index, setIndex] = useState(0), [font, setFont] = useState(track.font || DEFAULT_FONT);
   const [text, setText] = useState(''), [pasteText, setPasteText] = useState(''), [split, setSplit] = useState(''), [splitIndex, setSplitIndex] = useState<number | null>(null);
   const [tapIndex, setTapIndex] = useState(0);
   const [layoutText, setLayoutText] = useState(() => (track.result?.lines || []).map((line, i) => `${line.blockStart && i ? '\n' : ''}${line.section ? `[${line.section}]\n` : ''}${line.text}`).join('\n'));
@@ -402,15 +547,21 @@ function TimingEditor({ track, mode, duration, canSeek, position, playing, play,
   const tap = () => {
     const words = line?.words || [];
     if (!words.length || tapIndex > words.length) return;
-    const stamp = Math.round(position * 100) / 100;
+    const stamp = Math.round(position * 100) / 100, finishing = tapIndex === words.length;
     update(rows => { const units = rows[index].words!; if (tapIndex > 0) units[tapIndex - 1].end = stamp; if (tapIndex < units.length) units[tapIndex].start = stamp; rows[index].start = units[0].start; rows[index].end = units.at(-1)!.end; });
+    // The final tap closes the line, so review moves straight to the next one.
+    if (finishing && index < lines.length - 1) { setIndex(index + 1); setTapIndex(0); return; }
     setTapIndex(tapIndex + 1);
   };
   useEffect(() => { setTapIndex(0); }, [index]);
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => { if (event.key.toLowerCase() === 't' && !event.repeat && !/INPUT|TEXTAREA|SELECT/.test((event.target as HTMLElement).tagName)) { event.preventDefault(); tap(); } };
+    const handler = (event: KeyboardEvent) => {
+      if (event.repeat || /INPUT|TEXTAREA|SELECT/.test((event.target as HTMLElement).tagName)) return;
+      if (event.key === ' ') { event.preventDefault(); play(); }
+      else if (event.key.toLowerCase() === 't') { event.preventDefault(); tap(); }
+    };
     window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler);
-  }, [position, index, tapIndex, lines]);
+  }, [position, index, tapIndex, lines, playing]);
   const splitUnit = () => {
     const parts = split.split('|');
     if (splitIndex === null || parts.length < 2 || parts.some(part => !part.trim())) { setError('Separate syllables with |, for example a|way.'); return; }
@@ -422,23 +573,53 @@ function TimingEditor({ track, mode, duration, canSeek, position, playing, play,
     setSplitIndex(null); setMessage('Split created. Adjust the estimated syllable boundaries while listening.');
   };
   const draft = { ...track, font, result: { source: 'manual', timing: 'manual', agreement: track.result?.agreement ?? null, notes: [], lines } };
+  const words = line?.words || [];
+  const tapLabel = tapIndex === 0 ? 'Tap first word' : tapIndex >= words.length ? 'Tap last end' : `Tap “${words[tapIndex]?.text.trim() ?? ''}”`;
   return <div className="timing-editor">
-    <p>Set word or syllable start and end times in seconds. Both modes use these timings.</p>
-    <div className="timing-toolbar"><button onClick={play}>{playing ? 'Pause' : 'Play'}</button><input aria-label="Reviewer playback position" type="range" min="0" max={duration || 1} step="0.01" value={Math.min(position, duration || 1)} disabled={!canSeek} onChange={event => seek(Number(event.target.value))} /><output>{position.toFixed(2)} s</output></div>
+    <div className="timing-playback">
+      <button className="timing-play" onClick={play}>{playing ? 'Pause' : 'Play'}</button>
+      <input aria-label="Reviewer playback position" type="range" min="0" max={duration || 1} step="0.01" value={Math.min(position, duration || 1)} disabled={!canSeek} onChange={event => seek(Number(event.target.value))} />
+      <output>{position.toFixed(2)} s</output>
+      <button className="primary" disabled={busy || !lines.length} onClick={() => void run(save)}>Save timing</button>
+    </div>
     <KaraokePreview track={draft} position={position} mode={mode} />
-    <div className="timing-toolbar"><label>Font <select aria-label="Video font" value={font} onChange={event => { setFont(event.target.value); setDirty(true); setReviewed(false); }}>{fonts.map(option => <option key={option.name} value={option.name}>{option.name} — {option.description}</option>)}</select></label></div>
-    {lines.length > 0 && <>
-      <label className="field"><span>Lyric line</span><select aria-label="Lyric line" value={index} onChange={event => { setIndex(Number(event.target.value)); setSplitIndex(null); }}>{lines.map((line, i) => <option key={i} value={i}>{i + 1}. {line.text}</option>)}</select></label>
-      <div className="timing-toolbar"><label><input type="checkbox" checked={Boolean(line.blockStart)} disabled={index === 0} onChange={event => update(rows => { rows[index].blockStart = event.target.checked; })} /> Begin a new stanza here</label><button disabled={line.start === null} onClick={() => line.start !== null && seek(line.start)}>Seek to line</button><button disabled={tapIndex > (line.words?.length || 0)} onClick={tap}>{tapIndex === 0 ? 'Tap first word start (T)' : tapIndex < (line.words?.length || 0) ? `Tap unit ${tapIndex + 1} start (T)` : 'Tap final word end (T)'}</button><button onClick={() => setTapIndex(0)}>Restart taps</button></div>
-      {line.blockStart && <label className="field"><span>Section name <small>optional, e.g. Verse 1 or Chorus</small></span><input aria-label="Section name" value={line.section || ''} maxLength={200} onChange={event => update(rows => { rows[index].section = event.target.value; })} /></label>}
-      <details><summary>Change this line’s wording</summary><input aria-label="Replacement line text" value={text} onChange={event => setText(event.target.value)} placeholder={line.text} maxLength={500} /><button disabled={!text.trim()} onClick={() => { update(rows => { rows[index] = { ...rows[index], text: text.trim(), words: unitsFor(text.trim()), start: null, end: null, review: true }; }); setText(''); }}>Replace line and clear its timing</button></details>
-      <table className="timing-table"><thead><tr><th>Word / syllable</th><th>Start</th><th>End</th><th /></tr></thead><tbody>{(line.words || []).map((unit, j) => <tr key={j}><td>{unit.text}</td>{(['start', 'end'] as const).map(field => <td key={field}><input aria-label={`${field === 'start' ? 'Start' : 'End'} of unit ${j + 1}`} type="number" min="0" max={track.duration} step="0.01" value={unit[field] ?? ''} onChange={event => setTime(j, field, event.target.value === '' ? null : Number(event.target.value))} /><button aria-label={`Mark ${field} of unit ${j + 1} at playback position`} onClick={() => setTime(j, field, Math.round(position * 100) / 100)}>Now</button></td>)}<td><button onClick={() => { setSplitIndex(j); setSplit(unit.text.trimEnd()); }}>Split syllables</button></td></tr>)}</tbody></table>
+    {lines.length > 0 ? <>
+      <div className="timing-linebar">
+        <button className="icon-button" aria-label="Previous lyric line" disabled={index === 0} onClick={() => { setIndex(index - 1); setSplitIndex(null); }}>‹</button>
+        <select aria-label="Lyric line" value={index} onChange={event => { setIndex(Number(event.target.value)); setSplitIndex(null); }}>{lines.map((line, i) => <option key={i} value={i}>{i + 1}. {line.text}</option>)}</select>
+        <button className="icon-button" aria-label="Next lyric line" disabled={index >= lines.length - 1} onClick={() => { setIndex(index + 1); setSplitIndex(null); }}>›</button>
+        <button onClick={() => line.start !== null && seek(line.start)} disabled={line.start === null}>Seek to line</button>
+      </div>
+      <div className="tap-panel">
+        <ol className="tap-words">{words.map((unit, j) => <li key={j} className={`tap-word ${unit.start !== null ? 'done' : ''} ${j === tapIndex ? 'current' : ''}`}><span>{unit.text.trim() || unit.text}</span><small>{unit.start === null ? '—' : unit.start.toFixed(2)}{unit.end === null ? '' : ` – ${unit.end.toFixed(2)}`}</small></li>)}</ol>
+        <div className="tap-actions">
+          <button className="tap-button" disabled={tapIndex > words.length} onClick={tap}>{tapLabel}<kbd>T</kbd></button>
+          <button className="text-button" disabled={tapIndex === 0} onClick={() => setTapIndex(0)}>Restart taps</button>
+        </div>
+        <p className="tap-hint">Play the song and tap <kbd>T</kbd> as each word begins. The last tap ends the final word and moves to the next line.</p>
+      </div>
+      <details className="timing-numbers"><summary>Fine-tune numbers</summary>
+        <table className="timing-table"><thead><tr><th>Word / syllable</th><th>Start</th><th>End</th><th /></tr></thead><tbody>{words.map((unit, j) => <tr key={j}><td>{unit.text}</td>{(['start', 'end'] as const).map(field => <td key={field}><input aria-label={`${field === 'start' ? 'Start' : 'End'} of unit ${j + 1}`} type="number" min="0" max={track.duration} step="0.01" value={unit[field] ?? ''} onChange={event => setTime(j, field, event.target.value === '' ? null : Number(event.target.value))} /><button aria-label={`Mark ${field} of unit ${j + 1} at playback position`} onClick={() => setTime(j, field, Math.round(position * 100) / 100)}>Now</button></td>)}<td><button onClick={() => { setSplitIndex(j); setSplit(unit.text.trimEnd()); }}>Split syllables</button></td></tr>)}</tbody></table>
+      </details>
       {splitIndex !== null && <div className="timing-toolbar"><input aria-label="Syllable split" value={split} onChange={event => setSplit(event.target.value)} placeholder="a|way" /><button onClick={splitUnit}>Apply split</button><button onClick={() => setSplitIndex(null)}>Cancel split</button></div>}
-    </>}
+      <div className="timing-meta">
+        <label><input type="checkbox" checked={Boolean(line.blockStart)} disabled={index === 0} onChange={event => update(rows => { rows[index].blockStart = event.target.checked; })} /> Begin a new stanza here</label>
+        {line.blockStart && <label className="field"><span>Section name <small>optional</small></span><input aria-label="Section name" value={line.section || ''} maxLength={200} onChange={event => update(rows => { rows[index].section = event.target.value; })} /></label>}
+        <details><summary>Change this line’s wording</summary><input aria-label="Replacement line text" value={text} onChange={event => setText(event.target.value)} placeholder={line.text} maxLength={500} /><button disabled={!text.trim()} onClick={() => { update(rows => { rows[index] = { ...rows[index], text: text.trim(), words: unitsFor(text.trim()), start: null, end: null, review: true }; }); setText(''); }}>Replace line and clear its timing</button></details>
+      </div>
+    </> : <p className="save-message">Add lyrics before setting timing.</p>}
+    <details className="timing-font"><summary>Font and layout</summary>
+      <label className="field"><span>Font</span><select aria-label="Video font" value={font} onChange={event => { setFont(event.target.value); setDirty(true); setReviewed(false); }}>{fonts.map(option => <option key={option.name} value={option.name}>{option.name} — {option.description}</option>)}</select></label>
+    </details>
     <details className="paste-lyrics"><summary>Edit line and verse layout</summary><p>Keep the same words. Add line breaks, blank lines between verses, or headings such as [Chorus]. Word and syllable timings are preserved.</p><textarea aria-label="Line and verse layout" rows={10} value={layoutText} onChange={event => setLayoutText(event.target.value)} /><button disabled={busy || !layoutText.trim()} onClick={() => { setError(''); try { const next = reflowLyrics(lines, layoutText); setLines(next); setIndex(0); setDirty(true); setReviewed(false); setMessage('Line and verse layout updated. Save timing to apply it to playback and export.'); } catch (error) { setError(errorText(error)); } }}>Apply verse layout</button><button onClick={() => setLayoutText(lines.map((line, i) => `${line.blockStart && i ? '\n' : ''}${line.section ? `[${line.section}]\n` : ''}${line.text}`).join('\n'))}>Load current layout</button></details>
     <details className="paste-lyrics"><summary>Paste or replace complete lyrics</summary><textarea aria-label="Complete English lyrics" value={pasteText} onChange={event => setPasteText(event.target.value)} rows={8} placeholder="Paste English lyrics. Preserve blank lines between verses and choruses." /><button disabled={busy || !pasteText.trim()} onClick={() => void run(async () => { await api!.replaceLyrics(track.id, pasteText); await reload(); setPasteText(''); setMessage('Lyrics replaced. Align them or set timing manually.'); })}>Replace all lyrics</button></details>
-    <label><input type="checkbox" checked={reviewed} onChange={event => { setReviewed(event.target.checked); setDirty(true); }} /> I reviewed these timings</label>
-    <div className="timing-toolbar"><button disabled={busy || !lines.length} onClick={() => void run(save)}>Save timing</button><button disabled={busy || dirty || !lines.length || track.demo} onClick={() => void run(async () => { await api!.align(track.id); await reload(); setMessage('Alignment finished. Check its status in Cross-check.'); })}>Align lyrics with ElevenLabs</button><button disabled={busy || dirty} onClick={() => void run(async () => { const file = await api!.saveProject(track.id); if (file) setMessage('Timing project saved. Queue the same recording and load this file to resume later.'); })}>Save project file</button><button disabled={busy || dirty} onClick={() => void run(async () => { if (await api!.loadProject(track.id)) { await reload(); setMessage('Timing project loaded.'); } })}>Load project file</button></div>
+    <div className="timing-footer">
+      <label><input type="checkbox" checked={reviewed} onChange={event => { setReviewed(event.target.checked); setDirty(true); }} /> I reviewed these timings</label>
+      {dirty && <span className="timing-dirty">Unsaved</span>}
+      <details className="timing-more"><summary>More</summary>
+        <div className="timing-toolbar"><button disabled={busy || dirty || !lines.length || track.demo} onClick={() => void run(async () => { await api!.align(track.id); await reload(); setMessage('Alignment finished. Check its status in Cross-check.'); })}>Align lyrics with ElevenLabs</button><button disabled={busy || dirty} onClick={() => void run(async () => { const file = await api!.saveProject(track.id); if (file) setMessage('Timing project saved. Queue the same recording and load this file to resume later.'); })}>Save project file</button><button disabled={busy || dirty} onClick={() => void run(async () => { if (await api!.loadProject(track.id)) { await reload(); setMessage('Timing project loaded.'); } })}>Load project file</button></div>
+      </details>
+    </div>
     {dirty && <p className="save-message">Unsaved changes — save timing before aligning or saving a project file.</p>}
     {message && <p role="status" className="save-message">{message}</p>}{error && <p role="alert" className="form-error">{error}</p>}
   </div>;
@@ -503,7 +684,7 @@ function Modal({ title, close, children, className = '' }: { title: string; clos
   return <div className="modal-overlay" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}><div className={`modal ${className}`} ref={ref} role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><h2>{title}</h2><IconButton label="Close dialog" onClick={close}><X size={19} /></IconButton></div>{children}</div></div>;
 }
 
-function SettingsModal({ close, checked, loadDemo }: { close: () => void; checked: (deps: Dependency[]) => void; loadDemo: () => Promise<void> }) {
+function SettingsModal({ close, checked, loadDemo, track, act }: { close: () => void; checked: (deps: Dependency[]) => void; loadDemo: () => Promise<void>; track: Track | null; act: (fn: () => Promise<unknown>) => Promise<void> }) {
   const [settings, setSettings] = useState<Settings | null>(null), [deps, setDeps] = useState<Dependency[]>([]);
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
   const [section, setSection] = useState<"General" | "Audio tools">("General");
@@ -534,6 +715,7 @@ function SettingsModal({ close, checked, loadDemo }: { close: () => void; checke
       <div className="settings-content">
         <section hidden={section !== 'General'} aria-label="General">
           <h3>General</h3>
+          {track && <div className="settings-row"><span>Cover</span><div className="cover-setting"><p>{track.artwork ? track.title : 'No cover for this song'}<small>Shown in the Rolling video and export.</small></p><button type="button" className="secondary" disabled={!track.audioUrl} onClick={() => void act(() => api!.chooseCover(track.id))}>{track.artwork ? 'Change cover' : 'Add cover'}</button></div></div>}
           <div className="settings-row"><span>Lyrics</span><p>LRCLIB<small>No API key required.</small></p></div>
           <div className="settings-row"><span>Song titles</span><p>Apple Intelligence<small>{deps.find(dep => dep.key === 'appleIntelligence')?.detail || 'Checking on-device model availability…'}</small></p></div>
           <label className="field"><span>Transcription</span><div><select aria-label="Transcription" value={settings.transcriptionProvider} onChange={event => setSettings({ ...settings, transcriptionProvider: event.target.value as Settings['transcriptionProvider'] })}><option value="elevenlabs">ElevenLabs Scribe v2 — English</option><option value="whisper">Local Whisper — English</option></select><small>Word alignment uses ElevenLabs after the independent transcription.</small></div></label>

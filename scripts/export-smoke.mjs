@@ -38,7 +38,7 @@ try {
   const env = { ...process.env, NORAE_TEST_DATA: userData, NORAE_DEV_URL: '' }; delete env.ELECTRON_RUN_AS_NODE;
   app = await electron.launch({ args: ['.'], env });
   const page = await app.firstWindow(), errors = []; page.on('pageerror', error => errors.push(error.message));
-  const exportButton = page.getByRole('button', { name: 'Export MP4', exact: true });
+  const exportButton = page.getByRole('button', { name: 'Export', exact: true });
   await page.getByRole('heading', { name: 'A little louder', exact: true }).waitFor();
   assert.equal(await exportButton.isDisabled(), true);
   const byline = page.locator('.song-byline');
@@ -58,8 +58,10 @@ try {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: output });
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [cover] });
   }, { output, cover });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Add cover', exact: true }).click();
   await page.getByRole('button', { name: 'Change cover', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('canvas').getContext('2d').getImageData(1800, 950, 1, 1).data[0] > 220);
   const preview = page.getByRole('img', { name: 'Four-line karaoke video preview' });
   const assertFrameShape = async frame => {
@@ -71,7 +73,8 @@ try {
   await page.waitForFunction(() => innerWidth === 1040);
   await assertFrameShape(preview);
   const roomFrame = await preview.evaluate(canvas => canvas.toDataURL());
-  await page.getByRole('button', { name: 'Edit timing', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Edit timing/ }).click();
   const editorFrame = page.getByRole('dialog', { name: 'Edit timing' }).getByRole('img');
   await editorFrame.waitFor();
   await assertFrameShape(editorFrame);
@@ -79,6 +82,7 @@ try {
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await page.evaluate(({ id, lines }) => window.norae.saveTiming(id, { lines, font: 'Arial', reviewed: true }), { id, lines });
   await exportButton.click();
+  await page.getByRole('menuitemradio', { name: /MP4/ }).click();
   await page.getByRole('progressbar', { name: 'MP4 export progress' }).waitFor();
   await page.getByRole('status').filter({ hasText: 'Saved export.mp4' }).waitFor({ timeout: 120000 });
   const media = JSON.parse(await run('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', output]));
@@ -111,13 +115,14 @@ try {
   }
   const mode = page.getByRole('button', { name: 'Mode', exact: true });
   await mode.click();
-  await page.getByRole('button', { name: 'Rolling', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Rolling', exact: true }).click();
   const scrolling = page.getByRole('img', { name: 'Rolling video preview' });
   await assertFrameShape(scrolling);
   const playback = page.getByRole('slider', { name: 'Playback position', exact: true });
   await playback.fill('2.2');
   const originalFrame = await scrolling.evaluate(canvas => canvas.toDataURL());
-  await page.getByRole('button', { name: 'Edit timing', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Edit timing/ }).click();
   const timing = page.getByRole('dialog', { name: 'Edit timing' });
   await timing.getByRole('combobox', { name: 'Lyric line', exact: true }).selectOption('2');
   await timing.getByRole('spinbutton', { name: 'Start of unit 1', exact: true }).fill('2.3');
@@ -128,13 +133,14 @@ try {
   const scrollingOutput = path.join(userData, 'scrolling.mp4');
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }); }, scrollingOutput);
   await exportButton.click();
+  await page.getByRole('menuitemradio', { name: /MP4/ }).click();
   await page.getByRole('status').filter({ hasText: 'Saved scrolling.mp4' }).waitFor({ timeout: 120000 });
   const scrollingPixels = await decodedFrame(scrollingOutput, 66);
   const nearbyPixels = await scrolling.evaluate(canvas => Array.from(canvas.getContext('2d').getImageData(0, 0, 1, 1).data).slice(0, 3));
   assert.ok(nearbyPixels.every((channel, index) => Math.abs(scrollingPixels[index] - channel) < 8), 'Scrolling preview and exported background match');
   assert.ok(scrollingPixels[0] > 30, 'Export uses the scrolling mode instead of the black karaoke background');
   await mode.click();
-  await page.getByRole('button', { name: 'Karaoke', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Karaoke', exact: true }).click();
   await preview.waitFor();
   assert.equal(await app.evaluate(() => globalThis.providerCalls), 0); assert.deepEqual(errors, []);
   assert.equal((await readdir(path.dirname(output))).some(file => file.startsWith('.norae-export-')), false);

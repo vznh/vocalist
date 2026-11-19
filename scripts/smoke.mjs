@@ -13,7 +13,7 @@ try {
   await page.getByRole('textbox', { name: 'Song URL', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => typeof window.norae?.add), 'function');
   assert.equal((await page.evaluate(() => window.norae.getSettings())).lyricsProvider, 'lrclib');
-  assert.deepEqual((await page.evaluate(() => window.norae.check())).map(dep => dep.key).sort(), ['elevenlabs', 'ffmpeg', 'ytDlp']);
+  assert.deepEqual((await page.evaluate(() => window.norae.check())).map(dep => dep.key).sort(), ['appleIntelligence', 'elevenlabs', 'ffmpeg', 'ytDlp']);
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
   await page.screenshot({ path: '.runtime/room-empty.png' });
   await page.getByRole('textbox', { name: 'Song URL', exact: true }).fill('https://example.com/watch?v=abcdefghijk');
@@ -32,11 +32,14 @@ try {
   await page.getByRole('slider', { name: 'Playback position' }).fill('13');
   await page.waitForFunction(() => document.querySelector('.lyric-line.current')?.textContent.includes('Turn the quiet'));
   await page.screenshot({ path: '.runtime/room-demo.png' });
-  await page.getByRole('button', { name: 'Cross-check', exact: false }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Cross-check/ }).click();
   await page.getByText('Demo fixture: original instrumental', { exact: false }).waitFor();
   await page.getByRole('button', { name: 'Close dialog' }).click();
-  await page.getByRole('button', { name: 'Edit timing', exact: true }).click();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /Edit timing/ }).click();
   await page.getByLabel('Lyric line', { exact: true }).selectOption('2');
+  await page.getByText('Fine-tune numbers', { exact: true }).click();
   await page.getByRole('button', { name: 'Split syllables', exact: true }).first().click();
   await page.getByLabel('Syllable split', { exact: true }).fill('Tu|rn');
   await page.getByRole('button', { name: 'Apply split', exact: true }).click();
@@ -63,6 +66,7 @@ try {
   assert.equal(reflowed[2].words[0].start, 11.01); assert.equal(reflowed[0].section, 'Verse 1'); assert.equal(reflowed[5].section, 'Chorus');
   const projectPath = path.resolve('.runtime/demo-timing.vocalist.json');
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }); dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] }); }, projectPath);
+  await page.getByText('More', { exact: true }).click();
   await page.getByRole('button', { name: 'Save project file', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Timing project saved' }).waitFor();
   await page.getByRole('button', { name: 'Load project file', exact: true }).click();
@@ -78,7 +82,8 @@ try {
   await page.getByRole('textbox', { name: 'Song URL', exact: true }).waitFor();
   const exportPath = path.resolve('.runtime/demo-export.mp4');
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }); }, exportPath);
-  await page.getByRole('button', { name: 'Export MP4', exact: true }).click();
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /MP4/ }).click();
   await page.getByRole('status').filter({ hasText: 'Saved demo-export.mp4' }).waitFor({ timeout: 120000 });
   const encoded = JSON.parse(await run('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', exportPath]));
   assert.equal(encoded.streams.find(stream => stream.codec_type === 'video').width, 1920);
