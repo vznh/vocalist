@@ -122,6 +122,7 @@ Export, playback, persistence, and reprocessing checks use isolated libraries an
 | Path | Responsibility |
 | --- | --- |
 | `electron/engine.mjs` | Queue, independent branches, alignment, manual edits, exports, cancellation |
+| `electron/demo.mjs` | Demo instrumental and demo track |
 | `electron/audio.mjs` | Local audio streaming and byte-range responses for seeking |
 | `electron/cloud.mjs` | ElevenLabs adapter and private credential loading |
 | `electron/providers.mjs` | yt-dlp, optional local Whisper/LRCLIB, dependency checks |
@@ -129,11 +130,16 @@ Export, playback, persistence, and reprocessing checks use isolated libraries an
 | `shared/source-url.mjs` | YouTube/SoundCloud link validation and canonical recording identity |
 | `electron/timing.mjs` | Alignment mapping and reviewer timing preparation |
 | `shared/timing-validation.mjs` | Shared reviewer validation and export readiness |
-| `shared/karaoke.mjs` | Stanza grouping, pair fades, word/syllable sweep, shared frame drawing |
+| `shared/karaoke.mjs` | Frame drawing entry point and the four-line karaoke mode: stanza grouping, pair fades, word/syllable sweep |
+| `shared/scrolling.mjs` | Lyric Roll layout, wrapping and sweep |
+| `shared/karaoke-common.mjs` | Frame size, fonts and text units shared by both modes |
 | `shared/lyrics.mjs` | Reference lyric structure, transcript grouping, timing-preserving verse reflow |
 | `shared/reading-cursor.mjs` | Deterministic cue motion during lead-ins, words, held syllables, and gaps |
 | `electron/video.mjs` | Native canvas → FFmpeg MP4; timing project serialization |
 | `electron/main.mjs` / `preload.cjs` | Sandboxed renderer bridge, native save/load dialogs |
-| `src/App.tsx` | Queue, preview, cross-check, manual timing editor, settings |
+| `src/App.tsx` | App state, playback and modal wiring |
+| `src/components/` | One file per component: queue, preview, cross-check, timing editor, settings, mixer |
+| `src/hooks/useQueue.ts` | Queue subscription and legacy layout persistence |
+| `src/styles/` | One stylesheet per area, imported in order by `src/style.css` |
 
 The renderer has no Node integration, runs sandboxed, and uses narrow validated IPC calls. Credentials and arbitrary media paths are not exposed through track snapshots. URLs are limited to individual YouTube videos or SoundCloud tracks up to 15 minutes, with a 30-track queue limit. Mobile queue clients, automatic singing-specific syllable alignment, signed installers, and vocal separation remain future work.
