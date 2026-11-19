@@ -13,7 +13,8 @@ import { configureMetadataHelper } from './metadata.mjs';
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.NORAE_DEV_URL;
 if (devUrl && !/^http:\/\/127\.0\.0\.1:\d+$/.test(devUrl)) throw new Error('Invalid development URL.');
-if (process.env.NORAE_TEST_DATA) app.setPath('userData', process.env.NORAE_TEST_DATA);
+// Keep existing libraries and settings when the product name changes.
+app.setPath('userData', process.env.NORAE_TEST_DATA || path.join(app.getPath('appData'), 'norae'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'norae-audio', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 const hasLock = app.requestSingleInstanceLock();
 let window, engine, quitting = false;
