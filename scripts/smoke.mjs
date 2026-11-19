@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { run } from '../electron/process.mjs';
+import { probe } from './lib/mp4.mjs';
 await mkdir('.runtime', { recursive: true });
 const userData = await mkdtemp(path.resolve('.runtime/smoke-'));
 await writeFile(path.join(userData, 'settings.json'), JSON.stringify({ lyricsProvider: 'legacy-provider', lyricsCountry: 'US' }));
@@ -85,7 +86,7 @@ try {
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /MP4/ }).click();
   await page.getByRole('status').filter({ hasText: 'Saved demo-export.mp4' }).waitFor({ timeout: 120000 });
-  const encoded = JSON.parse(await run('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', exportPath]));
+  const encoded = await probe(exportPath);
   assert.equal(encoded.streams.find(stream => stream.codec_type === 'video').width, 1920);
   assert.equal(encoded.streams.find(stream => stream.codec_type === 'video').height, 1080);
   assert.equal(encoded.streams.find(stream => stream.codec_type === 'video').codec_name, 'h264');

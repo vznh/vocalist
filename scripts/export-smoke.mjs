@@ -1,14 +1,11 @@
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
 import { QueueEngine } from '../electron/engine.mjs';
-import { drawKaraoke } from '../shared/karaoke.mjs';
-import { READING_BAR_OPACITY } from '../shared/reading-cursor.mjs';
-import { run } from '../electron/process.mjs';
+import { assertEncodedFramesMatchPreview, assertFastStart, decodedFrame, probe } from './lib/mp4.mjs';
 
 const userData = await mkdtemp(path.join(os.tmpdir(), 'norae-export-desktop-'));
 let app;
@@ -20,13 +17,6 @@ const lines = [
   line('Again', 4.3, 4.8),
 ];
 
-async function decodedFrame(file, frame) {
-  const child = spawn('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', file, '-vf', `select=eq(n\\,${frame})`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  const buffers = []; let error = '';
-  child.stdout.on('data', data => buffers.push(data)); child.stderr.on('data', data => { error += data; });
-  await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => code === 0 ? resolve() : reject(new Error(error))); });
-  const pixels = Buffer.concat(buffers); assert.equal(pixels.length, 1920 * 1080 * 3); return pixels;
-}
 
 try {
   const engine = await QueueEngine.open({ root: path.join(userData, 'library/audio'), persistencePath: path.join(userData, 'library/queue.json'), settings: {} });
@@ -85,7 +75,7 @@ try {
   await page.getByRole('menuitemradio', { name: /MP4/ }).click();
   await page.getByRole('progressbar', { name: 'MP4 export progress' }).waitFor();
   await page.getByRole('status').filter({ hasText: 'Saved export.mp4' }).waitFor({ timeout: 120000 });
-  const media = JSON.parse(await run('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', output]));
+  const media = await probe(output);
   const video = media.streams.find(stream => stream.codec_type === 'video'), audio = media.streams.find(stream => stream.codec_type === 'audio');
   assert.equal(video.width, 1920); assert.equal(video.height, 1080); assert.equal(video.codec_name, 'h264'); assert.equal(video.profile, 'High');
   assert.equal(video.pix_fmt, 'yuv420p'); assert.equal(video.avg_frame_rate, '30/1'); assert.equal(video.nb_frames, '180'); assert.equal(video.sample_aspect_ratio, '1:1');
@@ -93,26 +83,8 @@ try {
   assert.equal(audio.codec_name, 'aac'); assert.equal(audio.profile, 'LC'); assert.equal(audio.sample_rate, '48000'); assert.equal(audio.channels, 2);
   assert.ok(Math.abs(Number(media.format.duration) - 6) < .15);
   assert.ok(Math.abs(Number(video.start_time) - Number(audio.start_time)) < 1 / 30, `Audio/video starts must agree within a frame: video=${video.start_time}, audio=${audio.start_time}`);
-  const file = await readFile(output), atoms = [];
-  for (let offset = 0; offset + 8 <= file.length;) { const size = file.readUInt32BE(offset); assert.ok(size >= 8); atoms.push({ name: file.toString('ascii', offset + 4, offset + 8), offset, size }); offset += size; }
-  const moov = atoms.find(atom => atom.name === 'moov'); assert.ok(moov.offset < atoms.find(atom => atom.name === 'mdat').offset);
-  assert.equal(file.subarray(moov.offset, moov.offset + moov.size).includes(Buffer.from('elst')), false);
-  const canvas = createCanvas(1920, 1080), ctx = canvas.getContext('2d');
-  for (const position of [.5, 1.3, 2.2, 3.7]) {
-    drawKaraoke(ctx, lines, position, 6, { font: 'Arial' });
-    const expected = ctx.getImageData(0, 0, 1920, 1080).data, actual = await decodedFrame(output, Math.round(position * 30));
-    const coverPixel = (950 * 1920 + 1800) * 3;
-    assert.ok(actual[coverPixel] > 210 && actual[coverPixel + 1] < 65 && actual[coverPixel + 2] < 80, 'Cover is visible in the lower right of the encoded frame');
-    let white = 0, matchingWhite = 0, blue = 0, matchingBlue = 0;
-    const barGray = Math.round(255 * READING_BAR_OPACITY);
-    for (let pixel = 1920 * 280; pixel < 1920 * 850; pixel++) {
-      const i = pixel * 4, j = pixel * 3;
-      if (Math.abs(expected[i] - barGray) <= 1 && expected[i] === expected[i + 1] && expected[i] === expected[i + 2]) { white++; if ([0, 1, 2].every(channel => Math.abs(actual[j + channel] - expected[i + channel]) < 25)) matchingWhite++; }
-      if (expected[i + 2] > 220 && expected[i] < 90 && expected[i + 1] > 105 && expected[i + 1] < 155) { blue++; if (actual[j + 2] > 200 && actual[j] < 110 && actual[j + 1] > 85 && actual[j + 1] < 175) matchingBlue++; }
-    }
-    assert.ok(white > 30 && matchingWhite / white > .65, `Reading bar differs from preview at ${position}s: ${matchingWhite}/${white} pixels`);
-    if (position > 1) assert.ok(blue > 30 && matchingBlue / blue > .65, `Consumed words differ from preview at ${position}s`);
-  }
+  await assertFastStart(output);
+  await assertEncodedFramesMatchPreview(output, lines, 6, [.5, 1.3, 2.2, 3.7]);
   const mode = page.getByRole('button', { name: 'Mode', exact: true });
   await mode.click();
   await page.getByRole('menuitemradio', { name: 'Rolling', exact: true }).click();
