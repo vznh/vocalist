@@ -17,7 +17,7 @@ try {
   await writeDemo(wav);
   await run('ffmpeg', ['-nostdin', '-loglevel', 'error', '-y', '-i', wav, '-codec:a', 'libmp3lame', mp3]);
   const downloader = path.join(userData, 'fixture-downloader.mjs'), downloads = path.join(userData, 'download-calls.log');
-  await writeFile(downloader, `#!/usr/bin/env node\nimport { appendFileSync, copyFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args.includes('--dump-single-json')) { if(args.at(-1)!==${JSON.stringify(sourceUrl(inputUrl))})throw new Error('Unexpected source URL'); appendFileSync(${JSON.stringify(downloads)}, 'inspect\\n'); console.log(JSON.stringify({ track: 'Original persistence fixture', artists: ['Norae fixture'], uploader: 'Label account', duration: 30 })); }\nelse if (args.includes('-o')) { if(args.at(-1)!==${JSON.stringify(sourceUrl(inputUrl))})throw new Error('Unexpected source URL'); appendFileSync(${JSON.stringify(downloads)}, 'download\\n'); copyFileSync(${JSON.stringify(mp3)}, args[args.indexOf('-o') + 1].replace('%(ext)s', 'mp3')); }\nelse console.log('Fixture downloader');\n`, { mode: 0o700 });
+  await writeFile(downloader, `#!/usr/bin/env node\nimport { appendFileSync, copyFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args.includes('--dump-single-json')) { if(args.at(-1)!==${JSON.stringify(sourceUrl(inputUrl))})throw new Error('Unexpected source URL'); appendFileSync(${JSON.stringify(downloads)}, 'inspect\\n'); console.log(JSON.stringify({ track: 'Original persistence fixture', artists: ['vocalist fixture'], uploader: 'Label account', duration: 30 })); }\nelse if (args.includes('-o')) { if(args.at(-1)!==${JSON.stringify(sourceUrl(inputUrl))})throw new Error('Unexpected source URL'); appendFileSync(${JSON.stringify(downloads)}, 'download\\n'); copyFileSync(${JSON.stringify(mp3)}, args[args.indexOf('-o') + 1].replace('%(ext)s', 'mp3')); }\nelse console.log('Fixture downloader');\n`, { mode: 0o700 });
   const credentials = path.join(userData, 'fixture.env');
   await writeFile(credentials, 'ELEVENLABS_API_KEY=fixture-key\n', { mode: 0o600 });
   await writeFile(path.join(userData, 'settings.json'), JSON.stringify({ ytDlp: downloader, credentialsFile: credentials }));
@@ -26,7 +26,7 @@ try {
     delete env.ELECTRON_RUN_AS_NODE;
     app = await electron.launch({ args: ['.'], env });
     const page = await app.firstWindow();
-    await page.getByRole('heading', { name: 'norae', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'vocalist', exact: true }).waitFor();
     return page;
   };
   page = await launch();
@@ -44,7 +44,7 @@ try {
     globalThis.fixtureCalls = { lyrics: 0, transcript: 0, alignment: 0 };
     globalThis.fetch = async url => {
       const words = [{ text: 'Hold', start: 1, end: 5 }, { text: 'on', start: 5.2, end: 6 }];
-      if (String(url).startsWith('https://lrclib.net/')) { globalThis.fixtureCalls.lyrics++; return Response.json([{ id: 1, trackName: 'Original persistence fixture', artistName: 'Norae fixture', duration: 30, plainLyrics: 'Hold on', syncedLyrics: '[00:01]Hold on' }]); }
+      if (String(url).startsWith('https://lrclib.net/')) { globalThis.fixtureCalls.lyrics++; return Response.json([{ id: 1, trackName: 'Original persistence fixture', artistName: 'vocalist fixture', duration: 30, plainLyrics: 'Hold on', syncedLyrics: '[00:01]Hold on' }]); }
       if (String(url).endsWith('speech-to-text')) { globalThis.fixtureCalls.transcript++; return Response.json({ words: words.map(word => ({ ...word, type: 'word' })) }); }
       if (String(url).endsWith('forced-alignment')) { globalThis.fixtureCalls.alignment++; return Response.json({ words }); }
       throw new Error('Unexpected fixture network request');
@@ -54,7 +54,7 @@ try {
   await page.getByRole('button', { name: 'Add to queue', exact: true }).click();
   await waitForAlignment();
   const before = (await page.evaluate(() => window.norae.snapshot()))[0];
-  assert.equal(before.url, sourceUrl(inputUrl)); assert.equal(before.artist, 'Norae fixture');
+  assert.equal(before.url, sourceUrl(inputUrl)); assert.equal(before.artist, 'vocalist fixture');
   before.result.lines[0].words[0].start = 1.1;
   await page.evaluate(({ id, lines }) => window.norae.saveTiming(id, { lines, font: 'Verdana', reviewed: true }), { id: before.id, lines: before.result.lines });
   const saved = await page.evaluate(() => window.norae.snapshot());

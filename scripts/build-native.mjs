@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 export const metadataHelper = path.join(root, '.runtime/native/norae-metadata');
 
 export async function buildNative() {
-  if (process.platform !== 'darwin') throw new Error('Norae is a macOS app.');
+  if (process.platform !== 'darwin') throw new Error('vocalist is a macOS app.');
   const source = path.join(root, 'native/Metadata.swift');
   const sourceInfo = await stat(source);
   try { if ((await stat(metadataHelper)).mtimeMs >= sourceInfo.mtimeMs) return; } catch {}

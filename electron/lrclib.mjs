@@ -25,7 +25,7 @@ export async function fetchLyrics(track, signal, _settings, { request = globalTh
     const requestSignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(25000)]);
     let response, failure, retryable;
     try {
-      response = await request(url, { headers: { 'User-Agent': 'NoraePrototype/0.1 (desktop karaoke)' }, signal: requestSignal });
+      response = await request(url, { headers: { 'User-Agent': 'VocalistPrototype/0.1 (desktop karaoke)' }, signal: requestSignal });
       if (response.ok) {
         rows = await response.json();
         break;

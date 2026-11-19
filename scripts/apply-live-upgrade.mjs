@@ -9,7 +9,7 @@ const project = path.resolve('.');
 if (!Number.isSafeInteger(launcherPid) || !Number.isSafeInteger(desktopPid) || !path.isAbsolute(userData || '')) throw new Error('Supply the exact launcher PID, desktop PID, and user-data directory.');
 const cwd = (await execute('lsof', ['-a', '-p', String(launcherPid), '-d', 'cwd', '-Fn'])).stdout.split('\n').find(line => line.startsWith('n'))?.slice(1);
 const parent = (await execute('ps', ['-p', String(desktopPid), '-o', 'ppid='])).stdout.trim();
-if (cwd !== project || Number(parent) !== launcherPid) throw new Error('The process IDs do not identify this project’s live Norae instance.');
+if (cwd !== project || Number(parent) !== launcherPid) throw new Error('The process IDs do not identify this project’s live vocalist instance.');
 let client;
 try {
   if (options.finish !== 'true') {

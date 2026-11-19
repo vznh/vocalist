@@ -1,10 +1,10 @@
-# Norae
+# vocalist
 
 An Electron desktop karaoke room and video editor for English songs. Paste a YouTube or SoundCloud track link, fetch LRCLIB lyrics independently of ElevenLabs Scribe v2 transcription, align the chosen lyrics, review the timing, and export a black-background karaoke MP4.
 
 ## Run
 
-Norae targets macOS. Development requires Node.js 22.12+, Xcode Command Line Tools (`xcode-select --install`), yt-dlp and FFmpeg. Build the native helper with a macOS 26 SDK. Apple Intelligence title enrichment requires macOS 26 and an eligible Mac with Apple Intelligence enabled in System Settings. The packaged app includes the helper and does not require developer tools.
+vocalist targets macOS. Development requires Node.js 22.12+, Xcode Command Line Tools (`xcode-select --install`), yt-dlp and FFmpeg. Build the native helper with a macOS 26 SDK. Apple Intelligence title enrichment requires macOS 26 and an eligible Mac with Apple Intelligence enabled in System Settings. The packaged app includes the helper and does not require developer tools.
 
 ```sh
 npm install
@@ -23,7 +23,7 @@ The setup script also installs optional local Whisper tools. The default cloud p
 LRCLIB is the default lyrics provider and requires no API key. Supply an ElevenLabs API key for transcription and forced alignment through a dotenv file. From the project folder, request it securely:
 
 ```sh
-bb secret request ELEVENLABS_API_KEY --purpose "Configure Norae transcription and timing" --describe ELEVENLABS_API_KEY "Scribe v2 and forced alignment" --write-env .env.local
+bb secret request ELEVENLABS_API_KEY --purpose "Configure vocalist transcription and timing" --describe ELEVENLABS_API_KEY "Scribe v2 and forced alignment" --write-env .env.local
 ```
 
 Alternatively, create a credentials file using the variable names in `.env.example`, and choose that file in Settings. The development app reads `.env.local` from its working directory by default. Packaged apps can choose an absolute credentials file path. Environment variables also work. Keys are read only in the desktop process and are never returned through settings or track snapshots. `.env` files are ignored by Git. Key presence is a configuration check; account entitlements are checked when the APIs are called.
@@ -83,7 +83,7 @@ For repeated phrases, aligned words must stay within the selected recording's ly
 
 **Edit line and verse layout** accepts new line breaks, blank lines, and headings such as `[Verse 1]` or `[Chorus]` while preserving the same words and existing word/syllable timing. Use **Apply verse layout**, then **Save timing**. Changing words through this layout control is rejected; the separate wording/replace controls handle that explicitly.
 
-**Save timing** applies validated changes to playback and export. **Save project file** preserves the recording URL, lyric text, stanza boundaries, timing units, font, and attribution in a `.norae.json` file. To resume later, queue the same recording and use **Load project file**. Loading checks recording identity and duration. The desktop also saves its queue and applied timing locally. Project files remain useful for portable backups; unsaved editor drafts still need Save timing before closing. Export rejects missing, reversed, overlapping, or out-of-song timing units; manual save can retain wholly untimed units for later work.
+**Save timing** applies validated changes to playback and export. **Save project file** preserves the recording URL, lyric text, stanza boundaries, timing units, font, and attribution in a `.vocalist.json` file. To resume later, queue the same recording and use **Load project file**. Loading checks recording identity and duration. The desktop also saves its queue and applied timing locally. Project files remain useful for portable backups; unsaved editor drafts still need Save timing before closing. Export rejects missing, reversed, overlapping, or out-of-song timing units; manual save can retain wholly untimed units for later work.
 
 ## Video format
 

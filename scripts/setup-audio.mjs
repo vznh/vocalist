@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const env = { ...process.env, PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin`, HOMEBREW_NO_AUTO_UPDATE: '1' };
 const available = (command, args) => spawnSync(command, args, { env, stdio: 'ignore' }).status === 0;
 if (process.platform !== 'darwin') {
-  console.error('Automatic audio setup currently supports macOS. Install yt-dlp, FFmpeg and whisper.cpp for your platform, download a ggml model, then set their paths in Norae Settings. See README.md.');
+  console.error('Automatic audio setup currently supports macOS. Install yt-dlp, FFmpeg and whisper.cpp for your platform, download a ggml model, then set their paths in vocalist Settings. See README.md.');
   process.exit(1);
 }
 const missing = [['yt-dlp', '--version', 'yt-dlp'], ['ffmpeg', '-version', 'ffmpeg'], ['whisper-cli', '--help', 'whisper-cpp']].filter(([command, arg]) => !available(command, [arg]));
@@ -35,4 +35,4 @@ catch {
   } catch (error) { await rm(partial, { force: true }); throw error; }
 }
 console.log(`Audio setup complete. Model: ${model}`);
-console.log(name === 'base' ? 'Restart Norae to auto-detect this model, or choose it in Settings. Base is for fast setup; use large-v3 for quality evaluation.' : 'Choose this model in Norae Settings, then retry your track.');
+console.log(name === 'base' ? 'Restart vocalist to auto-detect this model, or choose it in Settings. Base is for fast setup; use large-v3 for quality evaluation.' : 'Choose this model in vocalist Settings, then retry your track.');

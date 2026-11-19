@@ -34,7 +34,7 @@ export async function disableRelaunchWatcher(client, scriptPath) {
   let event = await nextPause();
   const actualPath = await realpath(scriptPath), actualUrl = pathToFileURL(actualPath).href;
   const script = [...scripts].find(([, url]) => url === actualUrl || url === actualPath);
-  if (!script) throw new Error('Could not identify the Norae development launcher.');
+  if (!script) throw new Error('Could not identify the vocalist development launcher.');
   const { scriptSource } = await client.call('Debugger.getScriptSource', { scriptId: script[0] });
   const lines = scriptSource.split('\n');
   const lineNumber = lines.findIndex(line => line.includes('void desktop.restart()'));

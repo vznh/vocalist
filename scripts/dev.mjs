@@ -15,7 +15,7 @@ await server.listen();
 const address = server.httpServer.address();
 if (!address || typeof address === 'string') throw new Error('Could not start the local renderer.');
 const url = `http://127.0.0.1:${address.port}`;
-console.log(`Norae desktop renderer: ${url}`);
+console.log(`vocalist desktop renderer: ${url}`);
 const desktopEnv = { ...process.env, NORAE_DEV_URL: url };
 // IDE terminals can inherit this flag from their own Electron host.
 delete desktopEnv.ELECTRON_RUN_AS_NODE;
@@ -25,9 +25,9 @@ const desktop = new DesktopLifecycle({
   launch: () => spawn(electron, ['.'], { cwd: projectRoot, stdio: 'inherit', env: desktopEnv }),
   onExit: (code, signal) => {
     if (code === 0 || signal) { process.exitCode = code || 0; void stop(); }
-    else console.error(`Norae desktop exited with code ${code}. It will relaunch after the next source change.`);
+    else console.error(`vocalist desktop exited with code ${code}. It will relaunch after the next source change.`);
   },
-  onError: error => console.error(`Could not launch Norae: ${error.message}`),
+  onError: error => console.error(`Could not launch vocalist: ${error.message}`),
 });
 async function stop() {
   if (stopped) return;
@@ -39,7 +39,7 @@ function sourceChanged(file) {
   if (stopped) return;
   changedFile = file; clearTimeout(restartTimer);
   restartTimer = setTimeout(async () => {
-    console.log(`Source changed (${changedFile}) · fully relaunching Norae`);
+    console.log(`Source changed (${changedFile}) · fully relaunching vocalist`);
     try { await buildNative(); } catch (error) { console.error(`Native helper build failed: ${error.message}`); return; }
     void desktop.restart().catch(error => console.error(`Desktop relaunch failed: ${error.message}`));
   }, 350);

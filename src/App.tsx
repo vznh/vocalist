@@ -8,7 +8,7 @@ import { exportIssue } from '../shared/timing-validation.mjs';
 import { useLegacyUpgrade } from './hooks/useLegacyUpgrade';
 
 const api = window.norae;
-const WEBSITE_URL = 'https://github.com/vznh/norae';
+const WEBSITE_URL = 'https://github.com/vznh/vocalist';
 const time = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${Math.floor(Math.max(0, seconds) % 60).toString().padStart(2, '0')}`;
 const errorText = (error: unknown) => (error as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
 const statusText = { queued: 'Queued', processing: 'Preparing…', ready: 'Ready', review: 'Needs review', error: 'Failed' };
@@ -357,7 +357,7 @@ function LyricsRetry({ track, act }: { track: Track; act: (fn: () => Promise<unk
   return <div className="lyrics-retry">
     <span>{running ? 'Searching LRCLIB…' : state === 'error' ? 'LRCLIB lyrics unavailable' : 'No matching LRCLIB lyrics found'}</span>
     <button className="text-button" disabled={running || !supported} onClick={() => void act(() => api!.retryLyrics(track.id))}>{running ? <LoaderCircle size={14} className="spin" /> : <RotateCcw size={14} />}{running ? 'Searching lyrics…' : 'Retry lyrics'}</button>
-    {!supported && <small>Save your timing project and restart Norae to enable lyrics retry.</small>}
+    {!supported && <small>Save your timing project and restart vocalist to enable lyrics retry.</small>}
   </div>;
 }
 function ReadingTiming({ track, act }: { track: Track; act: (fn: () => Promise<unknown>) => Promise<void> }) {

@@ -62,12 +62,12 @@ else {
     handle('room:cancelExport', id => engine.cancelExport(id));
     handle('room:saveProject', async id => {
       const track = selectedTrack(id);
-      const result = await dialog.showSaveDialog(window, { title: 'Save lyric timing', defaultPath: `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}.norae.json`, filters: [{ name: 'Norae timing project', extensions: ['json'] }] });
+      const result = await dialog.showSaveDialog(window, { title: 'Save lyric timing', defaultPath: `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}.vocalist.json`, filters: [{ name: 'vocalist timing project', extensions: ['json'] }] });
       return result.canceled ? null : saveTimingProject(track, result.filePath);
     });
     handle('room:loadProject', async id => {
       const track = selectedTrack(id);
-      const result = await dialog.showOpenDialog(window, { title: 'Load lyric timing for this recording', properties: ['openFile'], filters: [{ name: 'Norae timing project', extensions: ['json'] }] });
+      const result = await dialog.showOpenDialog(window, { title: 'Load lyric timing for this recording', properties: ['openFile'], filters: [{ name: 'vocalist timing project', extensions: ['json'] }] });
       if (result.canceled) return false;
       if ((await stat(result.filePaths[0])).size > 2000000) throw new Error('The timing project is too large.');
       const data = JSON.parse(await readFile(result.filePaths[0], 'utf8'));
@@ -91,13 +91,13 @@ else {
   app.on('before-quit', event => {
     if (quitting || !engine) return;
     event.preventDefault(); quitting = true;
-    engine.close().then(() => app.quit()).catch(error => { quitting = false; dialog.showErrorBox('Queue could not be saved', `${error.message}\nKeep Norae open and save timing projects before quitting.`); });
+    engine.close().then(() => app.quit()).catch(error => { quitting = false; dialog.showErrorBox('Queue could not be saved', `${error.message}\nKeep vocalist open and save timing projects before quitting.`); });
   });
 }
 function createWindow() {
-  window = new BrowserWindow({ title: 'Norae', width: 1440, height: 980, minWidth: 1040, minHeight: 720, backgroundColor: '#ffffff', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 22, y: 19 }, webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
-  window.webContents.once('did-finish-load', () => console.log('Norae desktop ready · LRCLIB lyrics'));
-  window.webContents.setWindowOpenHandler(({ url }) => { if (url === 'https://github.com/vznh/norae') void shell.openExternal(url); return { action: 'deny' }; });
+  window = new BrowserWindow({ title: 'vocalist', width: 1440, height: 980, minWidth: 1040, minHeight: 720, backgroundColor: '#ffffff', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 22, y: 19 }, webPreferences: { preload: path.join(directory, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
+  window.webContents.once('did-finish-load', () => console.log('vocalist desktop ready'));
+  window.webContents.setWindowOpenHandler(({ url }) => { if (url === 'https://github.com/vznh/vocalist') void shell.openExternal(url); return { action: 'deny' }; });
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   if (devUrl) window.loadURL(devUrl); else window.loadFile(path.join(directory, '../dist/index.html'));

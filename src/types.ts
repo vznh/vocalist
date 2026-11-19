@@ -14,7 +14,7 @@ export type Track = {
 };
 export type Settings = { ytDlp: string; ffmpeg: string; whisper: string; model: string; language: string; lyricsProvider: 'lrclib'; transcriptionProvider: 'elevenlabs' | 'whisper'; credentialsFile: string; font: string };
 export type Dependency = { key: string; ok: boolean; detail: string; optional?: boolean };
-export type NoraeAPI = {
+export type VocalistAPI = {
   snapshot(): Promise<Track[]>; add(input: { url: string; title?: string; artist?: string; singer?: string }): Promise<string>;
   demo(): Promise<string>; remove(id: string): Promise<void>; move(id: string, direction: number): Promise<void>; reorder(id: string, index: number): Promise<void>;
   retry(id: string): Promise<void>; retryLyrics(id: string): Promise<void>; selectLyrics(id: string, candidateId: number): Promise<void>;
@@ -27,4 +27,4 @@ export type NoraeAPI = {
   onChange(callback: (tracks: Track[]) => void): () => void;
   onStorageError(callback: (message: string) => void): () => void;
 };
-declare global { interface Window { norae?: NoraeAPI } }
+declare global { interface Window { norae?: VocalistAPI } }

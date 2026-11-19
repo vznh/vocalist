@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { NoraeAPI } from '../types';
+import type { VocalistAPI } from '../types';
 
-export function useLegacyUpgrade(api: NoraeAPI | undefined) {
+export function useLegacyUpgrade(api: VocalistAPI | undefined) {
   const [message, setMessage] = useState('');
   useEffect(() => {
     if (!api || !import.meta.env.DEV) return;

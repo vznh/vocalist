@@ -10,7 +10,7 @@ const app = await electron.launch({ args: ['.'], env: { ...process.env, NORAE_TE
 const errors = [];
 try {
   const page = await app.firstWindow(); page.on('pageerror', error => errors.push(error.message));
-  await page.getByRole('heading', { name: 'norae', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'vocalist', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => typeof window.norae?.add), 'function');
   assert.equal((await page.evaluate(() => window.norae.getSettings())).lyricsProvider, 'lrclib');
   assert.deepEqual((await page.evaluate(() => window.norae.check())).map(dep => dep.key).sort(), ['elevenlabs', 'ffmpeg', 'ytDlp']);
@@ -61,7 +61,7 @@ try {
   const reflowed = (await page.evaluate(() => window.norae.snapshot()))[0].result.lines;
   assert.equal(reflowed.length, 7); assert.equal(reflowed[2].text, 'Turn the quiet');
   assert.equal(reflowed[2].words[0].start, 11.01); assert.equal(reflowed[0].section, 'Verse 1'); assert.equal(reflowed[5].section, 'Chorus');
-  const projectPath = path.resolve('.runtime/demo-timing.norae.json');
+  const projectPath = path.resolve('.runtime/demo-timing.vocalist.json');
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }); dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] }); }, projectPath);
   await page.getByRole('button', { name: 'Save project file', exact: true }).click();
   await page.getByRole('status').filter({ hasText: 'Timing project saved' }).waitFor();
@@ -75,7 +75,7 @@ try {
   await page.getByRole('img', { name: 'Four-line karaoke video preview' }).waitFor();
   await page.screenshot({ path: '.runtime/stage-demo.png' });
   await page.keyboard.press('Escape');
-  await page.getByRole('heading', { name: 'norae', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'vocalist', exact: true }).waitFor();
   const exportPath = path.resolve('.runtime/demo-export.mp4');
   await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }); }, exportPath);
   await page.getByRole('button', { name: 'Export MP4', exact: true }).click();
