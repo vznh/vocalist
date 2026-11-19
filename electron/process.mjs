@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process';
 
-export function run(command, args, { signal, timeout = 120_000, maxOutput = 8_000_000, input, env } = {}) {
+export function run(command, args, { signal, timeout = 120_000, maxOutput = 8_000_000, input, env, cwd } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error('Cancelled.'));
-    const child = spawn(command, args, { shell: false, windowsHide: true, detached: process.platform !== 'win32', env: { ...process.env, ...env, PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin` } });
+    const child = spawn(command, args, { shell: false, windowsHide: true, detached: process.platform !== 'win32', cwd, env: { ...process.env, ...env, PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin` } });
     let stdout = '', stderr = '', failure, killTimer;
     const kill = (signal) => {
       try {

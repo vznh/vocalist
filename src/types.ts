@@ -1,5 +1,7 @@
 import type { LyricsMode } from '../shared/karaoke.mjs';
 
+export type ExportFormat = 'mp4' | 'webm' | 'gif' | 'lrc' | 'srt';
+
 export type Step = { state: 'waiting' | 'running' | 'done' | 'error' | 'review' | 'skipped'; message: string };
 export type TimedUnit = { text: string; start: number | null; end: number | null; loss?: number | null };
 export type LyricLine = { text: string; start: number | null; end: number | null; heard: string; agreement: number | null; review: boolean; timing: string; blockStart?: boolean; section?: string; words?: TimedUnit[] };
@@ -24,6 +26,8 @@ export type Track = {
 };
 export type Settings = { ytDlp: string; ffmpeg: string; whisper: string; model: string; language: string; lyricsProvider: 'lrclib'; transcriptionProvider: 'elevenlabs' | 'whisper'; credentialsFile: string; font: string };
 export type Dependency = { key: string; ok: boolean; detail: string; optional?: boolean };
+export type UpdateInfo = { project: string; branch: string; tracking: string | null; behind: number; ahead: number; dirty: boolean; commit: string };
+export type UpdateProgress = { phase: 'checking' | 'idle' | 'pulling' | 'building' | 'installing' | 'ready' | 'error'; message: string };
 export type VocalistAPI = {
   snapshot(): Promise<Track[]>; add(input: { url: string; title?: string; artist?: string; singer?: string }): Promise<string>;
   prepareVoiceMix(id: string): Promise<void>;
@@ -32,10 +36,16 @@ export type VocalistAPI = {
   align(id: string): Promise<void>; saveTiming(id: string, input: {lines: LyricLine[]; font: string; reviewed: boolean}): Promise<void>;
   replaceLyrics(id: string, text: string): Promise<void>;
   chooseCover(id: string): Promise<void>;
-  exportVideo(id: string, mode?: LyricsMode): Promise<string | null>; cancelExport(id: string): Promise<void>;
+  exportVideo(id: string, mode?: LyricsMode, format?: ExportFormat): Promise<string | null>; cancelExport(id: string): Promise<void>;
   saveProject(id: string): Promise<string | null>; loadProject(id: string): Promise<boolean>;
   getSettings(): Promise<Settings>; saveSettings(settings: Settings): Promise<Settings>; check(): Promise<Dependency[]>;
   chooseModel(): Promise<string | null>; chooseCredentials(): Promise<string | null>; fullscreen(enabled: boolean): Promise<void>;
+  clearQueue(): Promise<void>;
+  updateGetSource(): Promise<string | null>;
+  updateChooseSource(): Promise<string | null>;
+  updateCheck(): Promise<UpdateInfo>;
+  updateApply(mode?: 'update' | 'rebuild'): Promise<null>;
+  onUpdateProgress(callback: (progress: UpdateProgress) => void): () => void;
   onChange(callback: (tracks: Track[]) => void): () => void;
   onStorageError(callback: (message: string) => void): () => void;
 };

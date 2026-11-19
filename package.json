@@ -1,6 +1,6 @@
 {
   "name": "vocalist",
-  "productName": "vocalist",
+  "productName": "Music for the Masses",
   "version": "0.1.0",
   "private": true,
   "description": "A local-first karaoke room with independent lyrics and transcription.",
@@ -18,12 +18,12 @@
     "test:persistence": "npm run build && node scripts/persistence-smoke.mjs",
     "test:playback": "npm run build && node scripts/playback-smoke.mjs",
     "test:export": "npm run build && node scripts/export-smoke.mjs",
-    "package": "npm run build && electron-builder --mac --dir",
+    "package": "node scripts/record-source.mjs && npm run build && electron-builder --mac --dir",
     "test:audio": "node scripts/verify-audio.mjs"
   },
   "build": {
     "appId": "app.norae.desktop",
-    "productName": "vocalist",
+    "productName": "Music for the Masses",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -37,10 +37,19 @@
       {
         "from": ".runtime/native/norae-metadata",
         "to": "native/norae-metadata"
+      },
+      {
+        "from": "build",
+        "to": "build"
+      },
+      {
+        "from": ".runtime/source.json",
+        "to": "source.json"
       }
     ],
     "mac": {
-      "category": "public.app-category.music"
+      "category": "public.app-category.music",
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {
