@@ -38,7 +38,7 @@ test('reviewer timing rejects overlaps, incomplete exports, text mismatches, and
   assert.throws(() => validateLines([line('a', null, null)], 10, { requireTiming: true }), /set both start and end/);
   assert.throws(() => validateLines([line('a', 1, 11)], 10), /stay within/);
   assert.throws(() => validateLines([{ ...line('a', 1, 2), words: [{ text: 'b', start: 1, end: 2 }] }], 10), /reproduce/);
-  assert.throws(() => validateFont('injected font'), /Choose Arial/);
+  assert.throws(() => validateFont('injected font'), /Choose ABC Schengen A Trial, Arial/);
   assert.equal(validateLines([line('a', 1, 2)], 10)[0].timing, 'manual');
 });
 
@@ -109,4 +109,11 @@ test('a missing alignment word retains compatible existing timing without claimi
   assert.deepEqual(aligned.lines[0].words.map(word => word.start), [1, 2.1, 4]);
   assert.equal(aligned.timing, 'partial'); assert.equal(aligned.lines[0].review, true);
   assert.match(aligned.notes[0], /retained existing timing for 1/);
+});
+
+test('two verses may overlap in time while each verse keeps its own increasing order', () => {
+  const verse = [line('mine', 10, 14, { blockStart: true }), line('again', 14, 18)];
+  const other = [line('yours', 12, 16, { blockStart: true }), line('too', 16, 20)];
+  assert.equal(validateLines([...verse, ...other], 30).length, 4);
+  assert.throws(() => validateLines([line('a', 1, 3, { blockStart: true }), line('b', 2, 4)], 10), /times must increase/);
 });

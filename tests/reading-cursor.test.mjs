@@ -81,3 +81,11 @@ test('upcoming lyrics stay visible for the whole instrumental lead-in', () => {
   assert.deepEqual(nextBlock.map(row => row.index), [4, 2, 3]);
   assert.ok(nextBlock[0].leadInStart < 30);
 });
+
+test('overlapping verses each keep a reading bar on their own line', () => {
+  const words = [word({ lineIndex: 0, verseStart: true }), word({ text: 'yours', lineIndex: 1, verseStart: true, x: 900 }), word({ start: 24, end: 26, lineIndex: 2, x: 1200 })];
+  const cursors = getReadingCursors(words, 21);
+  assert.deepEqual(cursors.map(cursor => cursor.lineIndex), [0, 1]);
+  assert.ok(cursors.every(cursor => cursor.phase === 'singing' && cursor.opacity === 1));
+  assert.deepEqual(getReadingCursors(words, 25).map(cursor => cursor.lineIndex), [2]);
+});

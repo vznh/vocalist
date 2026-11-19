@@ -117,15 +117,15 @@ test('the bar traverses held third and fourth lines and crossfades without a pre
     ctx.font = '64px Arial'; const width = ctx.measureText(text).width;
     return ctx.getImageData(Math.round((1920 - width) / 2 + width * progress), 327 + slot * 120, 1, 1).data[0];
   };
-  drawKaraoke(ctx, lines, 9, 25);
+  drawKaraoke(ctx, lines, 9, 25, { font: 'Arial' });
   assert.equal(barPixel('three', .8, 2), 153);
-  drawKaraoke(ctx, lines, 10, 25);
+  drawKaraoke(ctx, lines, 10, 25, { font: 'Arial' });
   assert.ok(barPixel('three', 1, 2) > 60 && barPixel('three', 1, 2) < 93);
   assert.ok(barPixel('four', 0, 3) > 60 && barPixel('four', 0, 3) < 93);
-  drawKaraoke(ctx, lines, 15.9, 25);
+  drawKaraoke(ctx, lines, 15.9, 25, { font: 'Arial' });
   // The intended 240ms EOL handoff has just begun; the cue is still visible.
   assert.ok(barPixel('four', 5.9 / 6, 3) > 132);
-  drawKaraoke(ctx, lines, 18.5, 25);
+  drawKaraoke(ctx, lines, 18.5, 25, { font: 'Arial' });
   assert.equal(barPixel('next', .5, 0), 153);
 });
 test('a third-line bar remains visible when the fourth line has no timing', () => {
@@ -133,4 +133,22 @@ test('a third-line bar remains visible when the fourth line has no timing', () =
   const lines = ['one', 'two', 'three', 'four'].map((text, index) => ({ text, start: index === 3 ? null : index * 2 + 1, end: index === 3 ? null : index === 2 ? 9 : index * 2 + 2, words: [{ text, start: index === 3 ? null : index * 2 + 1, end: index === 3 ? null : index === 2 ? 9 : index * 2 + 2 }] }));
   drawKaraoke(ctx, lines, 7, 12);
   assert.deepEqual([...ctx.getImageData(960, 567, 1, 1).data].slice(0, 3), [153, 153, 153]);
+});
+
+test('Rolling mode keeps a line on one row and paints the sung sweep in the highlight color', () => {
+  const canvas = createCanvas(1920, 1080), ctx = canvas.getContext('2d');
+  const line = { text: 'It is making you cry', start: 1, end: 5, blockStart: true, words: [
+    { text: 'It ', start: 1, end: 1.8 }, { text: 'is ', start: 1.8, end: 2.6 },
+    { text: 'making ', start: 2.6, end: 3.6 }, { text: 'you ', start: 3.6, end: 4.3 }, { text: 'cry', start: 4.3, end: 5 },
+  ] };
+  drawKaraoke(ctx, [line], 3.2, 8, { mode: 'scrolling', font: 'Arial' });
+  const row = 500, wide = ctx.getImageData(128, row, 900, 1).data;
+  let rightmost = 0;
+  for (let x = 0; x < 899; x++) if (wide[x * 4] > 120) rightmost = x;
+  // A one-word-per-row collapse would leave the row nearly empty.
+  assert.ok(rightmost > 400, `line ink reached only ${rightmost}px across the row`);
+  const image = ctx.getImageData(128, row - 30, 900, 60).data;
+  let blue = 0;
+  for (let i = 0; i < image.length; i += 4) if (image[i] === 59 && image[i + 1] === 130 && image[i + 2] === 246) blue++;
+  assert.ok(blue > 50, 'sung text should be painted in the highlight color');
 });

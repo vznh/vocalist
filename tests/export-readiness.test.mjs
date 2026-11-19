@@ -21,6 +21,6 @@ test('preparation and active exports block competing work, while cancelled expor
 });
 test('export rejects missing media, unsupported fonts and invalid recording durations', () => {
   assert.match(exportIssue(null), /audio/);
-  const track = ready(); track.font = 'unknown'; assert.match(exportIssue(track), /Choose Arial/);
+  const track = ready(); track.font = 'unknown'; assert.match(exportIssue(track), /Choose ABC Schengen A Trial, Arial/);
   track.font = 'Arial'; for (const duration of [0, NaN, Infinity]) { track.duration = duration; assert.match(exportIssue(track), /valid duration/); }
 });

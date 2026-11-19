@@ -1,10 +1,12 @@
-import { fonts } from './karaoke.mjs';
+import { DEFAULT_FONT, fonts } from './karaoke.mjs';
 
 export function validateLines(lines, duration, { requireTiming = false } = {}) {
   if (!Number.isFinite(duration) || duration <= 0) throw new Error('The recording needs a valid duration before timing can be saved or exported.');
   if (!Array.isArray(lines) || !lines.length || lines.length > 500) throw new Error('Provide between 1 and 500 lyric lines.');
   let previousEnd = 0, count = 0;
   const clean = lines.map((line, i) => {
+    // Each verse is its own timeline so two singers can overlap.
+    if (i === 0 || line.blockStart) previousEnd = 0;
     if (typeof line.text !== 'string' || !line.text.trim() || line.text.length > 500 || /[\r\n\0]/.test(line.text)) throw new Error(`Line ${i + 1}: enter one nonempty line, up to 500 characters.`);
     if (!Array.isArray(line.words) || !line.words.length || line.words.length > 200) throw new Error(`Line ${i + 1}: add timing units.`);
     if (line.words.map(word => word.text).join('') !== line.text) throw new Error(`Line ${i + 1}: timing units must reproduce the lyric text exactly.`);
@@ -26,7 +28,7 @@ export function validateLines(lines, duration, { requireTiming = false } = {}) {
 }
 
 export function validateFont(font) {
-  if (!fonts.some(option => option.name === font)) throw new Error('Choose Arial, Verdana, or Trebuchet MS.');
+  if (!fonts.some(option => option.name === font)) throw new Error(`Choose ${fonts.slice(0, -1).map(option => option.name).join(', ')} or ${fonts.at(-1).name}.`);
   return font;
 }
 
@@ -34,7 +36,7 @@ export function exportIssue(track) {
   if (!track?.audioUrl) return 'Prepare the song audio before exporting.';
   if (['queued', 'processing'].includes(track.status) || track.steps?.alignment?.state === 'running') return 'Wait for song preparation to finish.';
   if (track.export?.state === 'running') return 'An export is already running.';
-  try { validateLines(track.result?.lines, track.duration, { requireTiming: true }); validateFont(track.font || 'Arial'); }
+  try { validateLines(track.result?.lines, track.duration, { requireTiming: true }); validateFont(track.font || DEFAULT_FONT); }
   catch (error) { return error.message; }
   return null;
 }

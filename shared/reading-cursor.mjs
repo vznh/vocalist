@@ -46,12 +46,14 @@ export function getReadingCursors(words, time, leadInStart = 0) {
     const previous = lines[index - 1], next = lines[index + 1];
     const approach = approachesFromLeft(previous, line);
     const entrance = !approach && previous ? transition(previous, line) : null;
-    const entryStart = entrance?.start ?? Math.max(line[0].leadInStart ?? leadInStart, previous?.at(-1).end ?? leadInStart);
+    // An overlapping verse owns its timeline, so a later verse end cannot delay it.
+    const previousEnd = Math.min(previous?.at(-1).end ?? leadInStart, line[0].start);
+    const entryStart = entrance?.start ?? Math.max(line[0].leadInStart ?? leadInStart, previousEnd);
     const exit = next && !approachesFromLeft(line, next) ? transition(line, next) : { start: line.at(-1).end, end: line.at(-1).end + CURSOR_FADE_SECONDS };
     if (time < entryStart || time >= exit.end) return [];
     const fadeIn = entrance ? progressBetween(time, entrance.start, entrance.end) : 1;
     const fadeOut = 1 - progressBetween(time, exit.start, exit.end);
-    const cursor = cursorWithinLine(line, time, Math.max(entryStart, previous?.at(-1).end ?? entryStart), approach);
+    const cursor = cursorWithinLine(line, time, Math.max(entryStart, previousEnd), approach);
     const opacity = cursor.opacity * Math.min(fadeIn, fadeOut);
     return opacity > 0 ? [{ ...cursor, opacity }] : [];
   });

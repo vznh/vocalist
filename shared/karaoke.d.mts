@@ -2,6 +2,7 @@ import type { LyricLine, TimedUnit } from '../src/types';
 export type LyricsMode = 'karaoke' | 'scrolling';
 export const VIDEO_WIDTH: number;
 export const VIDEO_HEIGHT: number;
+export const DEFAULT_FONT: string;
 export const fonts: { name: string; description: string }[];
 export const FADE_SECONDS: number;
 export function unitsFor(text: string): TimedUnit[];
@@ -11,4 +12,7 @@ export function lineTiming(line: LyricLine): {start: number | null; end: number 
 export function lyricPairs(lines: LyricLine[]): number[][];
 export function unitProgress(unit: TimedUnit, position: number): number;
 export function frameState(lines: LyricLine[], position: number, duration: number): {index: number; pairIndex: number; slot: number; opacity: number; leadInStart: number}[];
-export function drawKaraoke(ctx: CanvasRenderingContext2D, lines: LyricLine[], position: number, duration: number, options?: {font?: string; copyright?: string; artwork?: CanvasImageSource; mode?: LyricsMode}): void;
+export function extractAlbumColors(ctx: CanvasRenderingContext2D, artwork?: CanvasImageSource): [string, string] | null;
+export function lerpHexColor(a: string, b: string, t: number): string;
+export function drawKaraoke(ctx: CanvasRenderingContext2D, lines: LyricLine[], position: number, duration: number, options?: {font?: string; copyright?: string; artwork?: CanvasImageSource; mode?: LyricsMode; lyricsOpacity?: number; albumColors?: [string, string] | null}): void;
+export function scrollingState(blocks: {start: number | null; end: number | null}[], position: number): { singing: Set<number>; anchor: number; from: number };

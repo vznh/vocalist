@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { frameState, lyricPairs } from '../shared/lyric-sequence.mjs';
+import { scrollingState } from '../shared/karaoke.mjs';
 const rows = count => Array.from({ length: count }, (_, index) => ({ text: `Line ${index + 1}`, start: 1 + index * 2, end: 2 + index * 2, words: [{ text: `Line ${index + 1}`, start: 1 + index * 2, end: 2 + index * 2 }], blockStart: index === 0 }));
 const slots = (lines, time) => frameState(lines, time, 30).map(({ index, slot }) => [index, slot]);
 test('consumed pairs are replaced in their original slots while the other pair stays fixed', () => {
@@ -42,4 +43,17 @@ test('odd-length verses start a fresh pair and the final single line fades after
   const final = rows(5);
   assert.equal(frameState(final, 9.5, 30).find(row => row.index === 4).opacity, 1);
   assert.deepEqual(frameState(final, 10.5, 30), []);
+});
+
+test('two verses singing at once both highlight in Rolling mode', () => {
+  const blocks = [{ start: 8, end: 13.9 }, { start: 10, end: 12 }, { start: 12, end: 14 }, { start: 14, end: 16 }];
+  assert.deepEqual([...scrollingState(blocks, 11).singing], [0, 1]);
+  assert.deepEqual([...scrollingState(blocks, 13).singing], [0, 2]);
+  assert.deepEqual([...scrollingState(blocks, 15).singing], [3]);
+  assert.deepEqual([...scrollingState(blocks, 5).singing], []);
+});
+test('the scroll anchor follows the newest singing verse without losing the other highlight', () => {
+  const blocks = [{ start: 0, end: 4 }, { start: 4, end: 8 }, { start: 6, end: 10 }, { start: 10, end: 12 }];
+  const state = scrollingState(blocks, 7);
+  assert.equal(state.anchor, 2); assert.equal(state.from, 1); assert.deepEqual([...state.singing], [1, 2]);
 });
