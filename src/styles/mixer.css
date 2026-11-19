@@ -1,0 +1,5 @@
+.mixer-note { color: var(--muted); font-size: 13px; }
+.mixer-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 60px; gap: 12px; align-items: center; padding: 14px 0; }
+.mixer-row + .mixer-row { border-top: 1px solid var(--rule); }
+.mixer-value { text-align: right; font-variant-numeric: tabular-nums; }
+.mixer-reset { display: block; margin: 12px auto 0; }

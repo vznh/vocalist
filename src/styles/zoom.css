@@ -1,0 +1,7 @@
+.zoom-pill { position: fixed; top: 14px; right: 64px; z-index: 200; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #191917; color: #f6f5f1; font-size: 13px; box-shadow: 0 6px 20px rgb(0 0 0 / 24%); }
+.zoom-pill strong { min-width: 38px; font-variant-numeric: tabular-nums; }
+.zoom-pill button { border: 0; border-radius: 999px; background: transparent; color: inherit; padding: 2px 6px; font-size: 14px; line-height: 1; }
+.zoom-pill button:enabled:hover { background: rgb(255 255 255 / 14%); }
+.zoom-pill .zoom-reset { font-size: 12px; color: #b8b8b2; }
+.zoom-pill .zoom-reset:enabled:hover { color: #fff; }
+.zoom-divider { width: 1px; height: 14px; background: rgb(255 255 255 / 18%); }

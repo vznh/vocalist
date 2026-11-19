@@ -1,0 +1,39 @@
+.timing-modal { width: 1000px; }
+.timing-editor > p { font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+.timing-editor .karaoke-viewport { max-height: 245px; }
+.timing-toolbar { display: flex; align-items: center; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+.timing-toolbar > input[type=range] { flex: 1; }
+.timing-toolbar output { font-variant-numeric: tabular-nums; min-width: 75px; }
+.timing-table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 15px 0; }
+.timing-table th { text-align: left; }
+.timing-table td, .timing-table th { padding: 8px; border-bottom: 1px solid var(--rule); }
+.timing-table td:first-child { white-space: pre-wrap; }
+.timing-table input { width: 78px; padding: 6px; margin-right: 5px; }
+.timing-playback { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.timing-playback input[type=range] { flex: 1; }
+.timing-playback output { font-variant-numeric: tabular-nums; min-width: 72px; font-size: 13px; }
+.timing-playback .primary { margin-left: auto; }
+.timing-dirty { font-size: 12px; color: var(--muted); }
+.timing-play { min-width: 76px; }
+.timing-linebar { display: flex; align-items: center; gap: 8px; margin: 14px 0 10px; }
+.timing-linebar select { flex: 1; min-width: 0; }
+.timing-linebar .icon-button { flex: 0 0 auto; padding: 6px 12px; font-size: 18px; line-height: 1; }
+.tap-panel { border: 1px solid var(--rule); border-radius: var(--corner-radius); padding: 14px; margin-bottom: 14px; }
+.tap-words { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0 0 12px; padding: 0; }
+.tap-word { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: var(--corner-radius); background: var(--wash); font-size: 15px; }
+.tap-word small { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tap-word.current { outline: 2px solid var(--ink); outline-offset: -2px; }
+.tap-word.done small { color: var(--ink); }
+.tap-actions { display: flex; align-items: center; gap: 12px; }
+.tap-button { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 15px; }
+.tap-button kbd, .tap-hint kbd { font: inherit; font-size: 11px; padding: 1px 5px; border: 1px solid var(--rule); border-radius: 4px; }
+.tap-hint { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+.timing-meta { display: grid; gap: 10px; margin: 14px 0; font-size: 13px; }
+.timing-numbers { margin: 14px 0; font-size: 13px; }
+.timing-font { margin: 14px 0; }
+.timing-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; background: var(--paper); border-top: 1px solid var(--rule); }
+.timing-footer label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.timing-more { margin-left: auto; }
+.timing-more .timing-toolbar { margin: 10px 0 0; }
+.paste-lyrics { margin: 18px 0; }
+.paste-lyrics textarea { display: block; width: 100%; margin: 12px 0; padding: 10px; }

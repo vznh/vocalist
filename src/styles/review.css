@@ -1,0 +1,16 @@
+.review-modal { width: 650px; }
+.review-message { border: 1px solid var(--rule); padding: 12px; margin-bottom: 14px; }
+.review-message strong { font-size: 13px; }
+.review-message p { font-size: 12px; line-height: 1.7; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-summary { display: flex; gap: 23px; align-items: center; padding: 15px 0 22px; }
+.review-summary>div { display: flex; flex-direction: column; gap: 6px; min-width: 100px; }
+.review-summary strong { font-size: 27px; }
+.review-summary span { font-size: 11px; }
+.review-summary p { font-size: 13px; line-height: 1.7; }
+.comparison-head, .comparison-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.comparison-head { font-size: 10px; }
+.comparison-row { font-size: 13px; line-height: 1.7; }
+.comparison-row span { font-size: 11px; color: var(--muted); }
+.comparison-row p { margin-top: 5px; }
+.review-actions { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-top: 22px; }
+.info-box { font-size: 13px; line-height: 1.8; }

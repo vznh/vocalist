@@ -1,0 +1,20 @@
+.stage { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 49px var(--gutter) 0; background: #000; color: #fff; }
+.stage + .player {
+  --paper: #000;
+  --surface: #080808;
+  --ink: #f6f5f1;
+  --rule: #33332f;
+  --wash: #282825;
+  color-scheme: dark;
+  color: var(--ink);
+  background: var(--paper);
+  accent-color: var(--ink);
+}
+.stage + .player .play-button:enabled:hover { background: #cccac1; border-color: #cccac1; }
+.stage .text-button { color: inherit; }
+.stage :focus-visible { outline-color: #fff; }
+.stage header { display: flex; justify-content: space-between; align-items: center; gap: 20px; font-size: 13px; }
+.stage header small, .stage small { color: #bcbcb6; font-size: 12px; }
+.stage-lyrics { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 35px; text-align: center; }
+.stage-lyrics h1 { font-size: clamp(35px, 5vw, 76px); max-width: 1200px; line-height: 1.25; }
+.stage-lyrics p { font-size: 24px; line-height: 1.5; color: var(--muted); min-height: 36px; }
