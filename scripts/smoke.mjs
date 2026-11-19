@@ -21,7 +21,7 @@ try {
   await page.getByRole('alert').filter({ hasText: 'single YouTube video or SoundCloud track link' }).waitFor();
   await page.getByRole('textbox', { name: 'Song URL', exact: true }).fill('');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByText('Lyrics: LRCLIB — free, no API key.', { exact: true }).waitFor();
+  await page.getByText('No API key required.', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Load demo', exact: true }).click();
   await page.getByRole('heading', { name: 'A little louder', exact: true }).first().waitFor();
   await page.getByRole('button', { name: 'Play', exact: true }).click();
@@ -90,7 +90,7 @@ try {
   await run('ffmpeg', ['-nostdin', '-loglevel', 'error', '-y', '-ss', '1.5', '-i', exportPath, '-frames:v', '1', path.resolve('.runtime/export-lead-in.png')]);
   await run('ffmpeg', ['-nostdin', '-loglevel', 'error', '-y', '-ss', '13.4', '-i', exportPath, '-frames:v', '1', path.resolve('.runtime/export-line-handoff.png')]);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  assert.equal(await page.getByLabel('Song language', { exact: false }).inputValue(), 'en');
+  assert.equal(await page.getByLabel('Song language', { exact: false }).inputValue(), 'English');
   await page.getByRole('button', { name: 'Save & check tools' }).click();
   await page.getByRole('status').waitFor();
   assert.equal(JSON.parse(await readFile(path.join(userData, 'settings.json'), 'utf8')).language, 'en');

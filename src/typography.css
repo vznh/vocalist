@@ -1,0 +1,11 @@
+@font-face {
+  font-family: "vocalist Schengen";
+  src: local("ABCSchengenA-Regular"), local("ABC Schengen A Regular"),
+    local("ABCSchengenATrial-Regular"), local("ABC Schengen A Trial Regular");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --app-font: "vocalist Schengen", system-ui, sans-serif;
+}
