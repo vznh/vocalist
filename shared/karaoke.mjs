@@ -157,10 +157,10 @@ function drawScrollingLyrics(ctx, lines, position, font, hasArtwork) {
 }
 
 // Identical frames in desktop preview and MP4.
-export function drawKaraoke(ctx, lines, position, duration, { font = 'Arial', copyright = '', readingBarWidth = READING_BAR_WIDTH, artwork, mode = 'karaoke' } = {}) {
+export function drawKaraoke(ctx, lines, position, duration, { font = 'Arial', copyright = '', artwork, mode = 'karaoke' } = {}) {
   ctx.save(); ctx.globalAlpha = 1; ctx.fillStyle = mode === 'scrolling' ? '#303635' : '#000'; ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
   if (mode === 'scrolling') drawScrollingLyrics(ctx, lines, position, font, !!artwork);
-  else drawTraditionalKaraoke(ctx, lines, position, duration, font, readingBarWidth);
+  else drawTraditionalKaraoke(ctx, lines, position, duration, font);
   if (artwork) {
     ctx.globalAlpha = 1;
     ctx.drawImage(artwork, VIDEO_WIDTH - 216, VIDEO_HEIGHT - 216, 168, 168);
@@ -172,7 +172,7 @@ export function drawKaraoke(ctx, lines, position, duration, { font = 'Arial', co
   ctx.restore();
 }
 
-function drawTraditionalKaraoke(ctx, lines, position, duration, font, readingBarWidth) {
+function drawTraditionalKaraoke(ctx, lines, position, duration, font) {
   const windows = pairWindows(lines, duration);
   const state = sequenceState(windows, position);
   const activePair = windows.filter(window => window.first !== null && window.first <= position).at(-1) || windows[0];
@@ -200,7 +200,7 @@ function drawTraditionalKaraoke(ctx, lines, position, duration, font, readingBar
   const cursorWords = layouts.flatMap(({ window, units }) => units.map(unit => ({ ...unit, opacity: pairOpacity(window, position) })));
   for (const cursor of getReadingCursors(cursorWords, position)) {
     ctx.globalAlpha = cursor.opacity * READING_BAR_OPACITY; ctx.fillStyle = '#fff'; ctx.beginPath();
-    ctx.roundRect(cursor.x - readingBarWidth / 2, cursor.y - cursor.fontSize * .58, readingBarWidth, cursor.fontSize * 1.16, readingBarWidth / 4);
+    ctx.roundRect(cursor.x - READING_BAR_WIDTH / 2, cursor.y - cursor.fontSize * .58, READING_BAR_WIDTH, cursor.fontSize * 1.16, READING_BAR_WIDTH / 4);
     ctx.fill();
   }
 }

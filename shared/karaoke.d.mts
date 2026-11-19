@@ -11,4 +11,4 @@ export function lineTiming(line: LyricLine): {start: number | null; end: number 
 export function lyricPairs(lines: LyricLine[]): number[][];
 export function unitProgress(unit: TimedUnit, position: number): number;
 export function frameState(lines: LyricLine[], position: number, duration: number): {index: number; pairIndex: number; slot: number; opacity: number; leadInStart: number}[];
-export function drawKaraoke(ctx: CanvasRenderingContext2D, lines: LyricLine[], position: number, duration: number, options?: {font?: string; copyright?: string; readingBarWidth?: number; artwork?: CanvasImageSource; mode?: LyricsMode}): void;
+export function drawKaraoke(ctx: CanvasRenderingContext2D, lines: LyricLine[], position: number, duration: number, options?: {font?: string; copyright?: string; artwork?: CanvasImageSource; mode?: LyricsMode}): void;
