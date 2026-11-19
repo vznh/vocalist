@@ -26,8 +26,8 @@ async function elevenlabs(method, audioPath, settings, signal, fields) {
   return request(`https://api.elevenlabs.io/v1/${method}`, { method: 'POST', headers: { 'xi-api-key': key }, body: form, signal: combinedSignal(signal, 600000) }, 'ElevenLabs');
 }
 export async function transcribeElevenLabs(audioPath, settings, signal) {
-  const data = await elevenlabs('speech-to-text', audioPath, settings, signal, { model_id: 'scribe_v2', language_code: 'eng', timestamps_granularity: 'word', tag_audio_events: 'false', diarize: 'false' });
-  const words = (data.words || []).filter(word => word.type === 'word' && typeof word.text === 'string' && Number.isFinite(word.start) && Number.isFinite(word.end) && word.start >= 0 && word.end > word.start).map(({ text, start, end, logprob }) => ({ text, start, end, ...(Number.isFinite(logprob) ? { logprob } : {}) }));
+  const data = await elevenlabs('speech-to-text', audioPath, settings, signal, { model_id: 'scribe_v2', language_code: 'eng', timestamps_granularity: 'word', tag_audio_events: 'false', diarize: 'true' });
+  const words = (data.words || []).filter(word => word.type === 'word' && typeof word.text === 'string' && Number.isFinite(word.start) && Number.isFinite(word.end) && word.start >= 0 && word.end > word.start).map(({ text, start, end, logprob, speaker_id }) => ({ text, start, end, ...(Number.isFinite(logprob) ? { logprob } : {}), ...(typeof speaker_id === "string" && speaker_id ? { speaker_id } : {}) }));
   if (!words.length) throw new Error('Scribe v2 returned no usable words. Database lyrics remain available for manual timing.');
   return words;
 }

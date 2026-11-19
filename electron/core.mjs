@@ -36,7 +36,8 @@ export function parseLrc(lrc = '', duration = 0) {
     if (stamps.length) { boundary = !text; section = ''; }
   }
   result.sort((a, b) => a.start - b.start);
-  return result.map((line, i) => ({ ...line, end: result[i + 1]?.start ?? Math.max(duration, line.start + 5) })).filter(line => line.text);
+  // A shared onset means simultaneous lines, so the next start must be strictly later.
+  return result.map((line, i) => ({ ...line, end: result.slice(i + 1).find(row => row.start > line.start)?.start ?? Math.max(duration, line.start + 5) })).filter(line => line.text);
 }
 
 function matchingTitle(title, artist) {

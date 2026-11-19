@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { QueueEngine } from '../electron/engine.mjs';
 import { QueueStore } from '../electron/queue-store.mjs';
+import { DEFAULT_FONT } from '../shared/karaoke.mjs';
 
 const input = { url: 'https://youtu.be/abcdefghijk' };
 const lyrics = { id: 1, title: 'Home', artist: 'Original fixture', plainLyrics: 'Bring it home', syncedLyrics: '[00:01]Bring it home' };
@@ -108,4 +109,14 @@ test('overlapping saves restore the most recent state rather than an older progr
   const first = store.save(records); records[0].singer = 'Latest reviewer'; const second = store.save(records);
   await Promise.all([first, second]);
   assert.equal((await store.load())[0].singer, 'Latest reviewer');
+});
+
+test('a saved song still on the inherited Arial default is moved to the house font', async t => {
+  const { options } = await fixture(t);
+  const engine = await QueueEngine.open(options);
+  const id = engine.add(input); await finish(engine);
+  engine.saveTiming(id, { lines: engine.tracks[0].result.lines, font: 'Arial', reviewed: true });
+  await engine.store.flush(); await engine.close();
+  const reopened = await QueueEngine.open(options); t.after(() => reopened.close());
+  assert.equal(reopened.snapshot()[0].font, DEFAULT_FONT);
 });

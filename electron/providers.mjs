@@ -1,4 +1,5 @@
 import { featuredArtistFor, sourcePrimaryArtist } from '../shared/artist-credit.mjs';
+import { DEFAULT_FONT } from '../shared/karaoke.mjs';
 import { sourceArtwork } from './artwork.mjs';
 import path from 'node:path';
 import { readFile, access } from 'node:fs/promises';
@@ -8,8 +9,9 @@ import { credentials, transcribeElevenLabs, alignElevenLabs } from './cloud.mjs'
 import { checkMetadata } from './metadata.mjs';
 export { enrichMetadata as enrich } from './metadata.mjs';
 export { fetchLyrics } from './lrclib.mjs';
+export { hasVoiceMix, separateVoiceMix } from './vocals.mjs';
 
-export const defaultSettings = { ytDlp: 'yt-dlp', ffmpeg: 'ffmpeg', whisper: 'whisper-cli', model: '', language: 'en', lyricsProvider: 'lrclib', transcriptionProvider: 'elevenlabs', credentialsFile: '', font: 'Arial' };
+export const defaultSettings = { ytDlp: 'yt-dlp', ffmpeg: 'ffmpeg', whisper: 'whisper-cli', model: '', language: 'en', lyricsProvider: 'lrclib', transcriptionProvider: 'elevenlabs', credentialsFile: '', font: DEFAULT_FONT };
 export async function checkDependencies(settings) {
   const results = await Promise.all([
     checkMetadata(),
@@ -32,9 +34,8 @@ export async function inspect(url, settings, signal, overrides) {
   const primaryArtist = sourcePrimaryArtist(info, track, url, overrides);
   const featuredArtist = featuredArtistFor({ ...track, title: typeof info.title === 'string' ? info.title : track.title });
   const artwork = await sourceArtwork(info.thumbnail, signal);
-  const album = typeof info.album === 'string' ? info.album.trim() : '';
   const releaseYear = Number(info.release_year ?? (typeof info.release_date === 'string' ? info.release_date.slice(0, 4) : undefined));
-  return { ...track, ...(primaryArtist && (primaryArtist !== track.artist || primaryArtist.includes(',')) ? { primaryArtist } : {}), ...(featuredArtist ? { featuredArtist } : {}), ...(artwork ? { artwork } : {}), ...(album ? { album } : {}), ...(Number.isInteger(releaseYear) && releaseYear >= 1000 && releaseYear <= 9999 ? { releaseYear } : {}), originalMetadata: { title: String(info.track || info.title || track.title).slice(0, 1000), artist: track.artist } };
+  return { ...track, ...(primaryArtist && (primaryArtist !== track.artist || primaryArtist.includes(',')) ? { primaryArtist } : {}), ...(featuredArtist ? { featuredArtist } : {}), ...(artwork ? { artwork } : {}), ...(Number.isInteger(releaseYear) && releaseYear >= 1000 && releaseYear <= 9999 ? { releaseYear } : {}), originalMetadata: { title: String(info.track || info.title || track.title).slice(0, 1000), artist: track.artist } };
 }
 export async function extract(url, directory, settings, signal) {
   await run(settings.ytDlp, ['--ignore-config', '--no-playlist', '--no-progress', '--no-warnings', '--socket-timeout', '20', '--retries', '2', '--max-filesize', '100M', ...(settings.ffmpeg === 'ffmpeg' ? [] : ['--ffmpeg-location', settings.ffmpeg]), '-f', 'bestaudio/best', '-x', '--audio-format', 'mp3', '--audio-quality', '0', '-o', path.join(directory, 'audio.%(ext)s'), '--', url], { signal, timeout: 300000 });

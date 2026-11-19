@@ -52,3 +52,8 @@ test('timing drift is flagged even when every word agrees', () => {
   const result = reconcile({ syncedLyrics: '[00:01]Sing with me', plainLyrics: '' }, [{ text: 'Sing with me', start: 10, end: 12 }], 15);
   assert.equal(result.agreement, 1); assert.equal(result.lines[0].review, true);
 });
+
+test('lines sharing one onset stay full length instead of collapsing to zero', () => {
+  const rows = parseLrc('[00:10]Mine\n[00:10]Yours\n[00:14]Next', 30);
+  assert.deepEqual(rows.map(row => [row.text, row.start, row.end]), [['Mine', 10, 14], ['Yours', 10, 14], ['Next', 14, 30]]);
+});

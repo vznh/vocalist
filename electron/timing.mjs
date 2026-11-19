@@ -11,6 +11,26 @@ export function repairReferenceTiming(result, lyrics, duration, transcript = [])
   return guardReferenceTiming(result, reconcile(lyrics, [], duration).lines, { transcript, duration });
 }
 
+export function attachSpeakers(lines, transcript = []) {
+  const speakers = transcript.filter(w => typeof w?.speaker_id === "string" && w.speaker_id && Number.isFinite(w.start) && Number.isFinite(w.end));
+  if (!speakers.length) return lines;
+  return lines.map(line => {
+    if (!Array.isArray(line.words)) return line;
+    const words = line.words.map(word => {
+      if (word.speaker_id || !Number.isFinite(word.start) || !Number.isFinite(word.end)) return word;
+      let best = null, bestScore = 0;
+      const mid = (word.start + word.end) / 2;
+      for (const s of speakers) {
+        const overlap = Math.min(word.end, s.end) - Math.max(word.start, s.start);
+        const score = overlap > 0 ? overlap + 1 : Math.max(0, 0.5 - Math.abs(mid - (s.start + s.end) / 2));
+        if (score > bestScore) { bestScore = score; best = s.speaker_id; }
+      }
+      return best ? { ...word, speaker_id: best } : word;
+    });
+    return { ...line, words };
+  });
+}
+
 export function prepareLines(result, lyrics) {
   const layout = parseLyricLayout(lyrics?.plainLyrics || '');
   result.lines = result.lines.map((line, i) => {

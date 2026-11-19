@@ -1,4 +1,4 @@
-import { hasVoiceMix, separateVoiceMix } from './vocals.mjs';
+import { hasVoiceMix } from './vocals.mjs';
 import { repairSavedLyricCopy } from './lyric-contamination.mjs';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm } from 'node:fs/promises';
@@ -8,6 +8,7 @@ import { sourceUrl, sourceName, reconcile } from './core.mjs';
 import * as providers from './providers.mjs';
 import { writeDemo, demoLines } from './demo.mjs';
 import { prepareLines, applyAlignment, repairReferenceTiming, validateLines, validateFont } from './timing.mjs';
+import { DEFAULT_FONT } from '../shared/karaoke.mjs';
 import { exportVideo } from './video.mjs';
 import { QueueStore } from './queue-store.mjs';
 import { exportIssue } from '../shared/timing-validation.mjs';
@@ -17,7 +18,7 @@ const step = () => ({ state: 'waiting', message: '' });
 const steps = () => ({ audio: step(), lyrics: step(), transcript: step(), alignment: step() });
 export class QueueEngine extends EventEmitter {
   constructor({ root, settings, services = providers, persistencePath }) {
-    super(); this.root = root; this.settings = settings; this.services = services; this.tracks = []; this.jobs = new Map(); this.lyricsRetries = new Map(); this.voiceJobs = new Map(); this.renders = new Map(); this.closed = false;
+    super(); this.root = root; this.settings = settings; this.services = services; this.tracks = []; this.jobs = new Map(); this.lyricsRetries = new Map(); this.voiceJobs = new Map(); this.renders = new Map(); this.closed = false; this.voiceChain = Promise.resolve();
     this.store = persistencePath ? new QueueStore({ file: persistencePath, audioRoot: root }) : null;
   }
   static async open(options) {
@@ -27,6 +28,12 @@ export class QueueEngine extends EventEmitter {
     let repairedQueue = false;
     for (const track of engine.tracks) {
       if (await hasVoiceMix(track)) track.voiceMix = 'ready';
+      // Arial was the inherited default, so saved songs move to the house face.
+      if ((track.font || 'Arial') === 'Arial') { track.font = DEFAULT_FONT; repairedQueue = true; }
+      // Schengen became the house face, so unstyled saved tracks move with it.
+      if (!track.font || track.font === 'Arial') { track.font = DEFAULT_FONT; repairedQueue = true; }
+      // Albums come from the recording, so a stale source label is dropped on restore.
+      if (track.album !== (track.lyrics?.album || '')) { track.album = track.lyrics?.album || ''; repairedQueue = true; }
       if (!track.reviewed && track.result?.timing !== 'manual' && repairSavedLyricCopy(track)) repairedQueue = true;
       if (track.reviewed) continue;
       const repaired = repairReferenceTiming(track.result, track.lyrics, track.duration, track.transcript);
@@ -74,7 +81,7 @@ export class QueueEngine extends EventEmitter {
       if (input[field] !== undefined && typeof input[field] !== 'string') throw new Error(`Invalid ${field}.`);
       overrides[field] = (input[field] || '').trim().slice(0, 200);
     }
-    const track = { id: randomUUID(), url, title: overrides.title || 'Reading your track…', artist: overrides.artist || sourceName(url), singer: overrides.singer || 'You', duration: 0, status: 'queued', steps: steps(), candidates: [], lyrics: null, transcript: [], result: null, audioUrl: null, error: '', overrides, demo: false, font: this.settings.font || 'Arial', reviewed: false, export: { state: 'idle', progress: 0, message: '' } };
+    const track = { id: randomUUID(), url, title: overrides.title || 'Reading your track…', artist: overrides.artist || sourceName(url), singer: overrides.singer || 'You', duration: 0, status: 'queued', steps: steps(), candidates: [], lyrics: null, transcript: [], result: null, audioUrl: null, error: '', overrides, demo: false, font: this.settings.font || DEFAULT_FONT, reviewed: false, export: { state: 'idle', progress: 0, message: '' } };
     this.tracks.push(track); this.publish(); this.pump(); return track.id;
   }
   async demo() {
@@ -84,23 +91,32 @@ export class QueueEngine extends EventEmitter {
     await mkdir(directory, { recursive: true });
     const audioPath = path.join(directory, 'demo.wav'); await writeDemo(audioPath);
     const lines = demoLines.map((text, i) => { const parts = text.match(/\S+\s*/g); return { text, blockStart: i === 0 || i === 4, words: parts.map((text, j) => ({ text, start: i * 4 + 3 + j * 4 / parts.length, end: i * 4 + 3 + (j + 1) * 4 / parts.length })), start: i * 4 + 3, end: i * 4 + 7, heard: '', agreement: null, review: false, timing: 'demo' }; });
-    this.tracks.push({ id, title: 'A little louder', artist: 'The vocalist demo', singer: 'Everyone', duration: 30, status: 'ready', steps: { audio: { state: 'done', message: 'Original synthesized instrumental' }, lyrics: { state: 'done', message: 'Illustrative original lyrics' }, transcript: { state: 'skipped', message: 'Demo fixture with no transcription' }, alignment: { state: 'skipped', message: 'Illustrative word timing' } }, candidates: [], lyrics: null, transcript: [], result: { source: 'demo', timing: 'demo', agreement: null, lines, notes: ['Original instrumental and illustrative timed lyrics. This demo does not run the YouTube or transcription pipeline.'] }, audioUrl: `norae-audio://track/${id}`, audioPath, directory, error: '', demo: true, font: 'Arial', reviewed: false, export: { state: 'idle', progress: 0, message: '' } });
+    this.tracks.push({ id, title: 'A little louder', artist: 'The vocalist demo', singer: 'Everyone', duration: 30, status: 'ready', steps: { audio: { state: 'done', message: 'Original synthesized instrumental' }, lyrics: { state: 'done', message: 'Illustrative original lyrics' }, transcript: { state: 'skipped', message: 'Demo fixture with no transcription' }, alignment: { state: 'skipped', message: 'Illustrative word timing' } }, candidates: [], lyrics: null, transcript: [], result: { source: 'demo', timing: 'demo', agreement: null, lines, notes: ['Original instrumental and illustrative timed lyrics. This demo does not run the YouTube or transcription pipeline.'] }, audioUrl: `norae-audio://track/${id}`, audioPath, directory, error: '', demo: true, font: DEFAULT_FONT, reviewed: false, export: { state: 'idle', progress: 0, message: '' } });
     this.publish(); return id;
   }
   async prepareVoiceMix(id) {
     const track = this.tracks.find(track => track.id === id);
     if (this.closed || !track?.audioPath || this.jobs.has(id)) throw new Error('Wait until the song is ready.');
-    if (this.voiceJobs.has(id) || track.voiceMix === 'ready') return;
+    return this.startVoiceMix(track);
+  }
+  startVoiceMix(track) {
+    if (this.closed || !track?.audioPath || !this.services.separateVoiceMix || this.voiceJobs.has(track.id) || track.voiceMix === 'ready') return Promise.resolve();
     const controller = new AbortController();
     track.voiceMix = 'preparing';
-    const promise = separateVoiceMix(track, this.settings, controller.signal)
+    // Stem splitting is CPU heavy, so queued songs wait for the current split.
+    const separated = this.voiceChain.then(async () => {
+      controller.signal.throwIfAborted();
+      await this.services.separateVoiceMix(track, this.settings, controller.signal);
+    });
+    const promise = separated
       .then(() => { track.voiceMix = 'ready'; })
       .catch(error => {
         track.voiceMix = 'error';
         if (!controller.signal.aborted) throw new Error(`Voice separation failed. ${error.message}`);
       })
-      .finally(() => { this.voiceJobs.delete(id); this.publish(false); });
-    this.voiceJobs.set(id, { controller, promise });
+      .finally(() => { this.voiceJobs.delete(track.id); this.publish(false); });
+    this.voiceChain = promise.catch(() => {});
+    this.voiceJobs.set(track.id, { controller, promise });
     this.publish(false);
     return promise;
   }
@@ -117,6 +133,16 @@ export class QueueEngine extends EventEmitter {
     if (render) await render.promise.catch(() => {});
     if (this.store) await this.store.flush();
     if (track.directory) await rm(track.directory, { recursive: true, force: true });
+  }
+  async clear() {
+    const jobs = [...this.jobs.values(), ...this.lyricsRetries.values(), ...this.voiceJobs.values(), ...this.renders.values()];
+    for (const job of jobs) job.controller.abort();
+    const removed = this.tracks;
+    this.tracks = [];
+    this.publish();
+    await Promise.allSettled(jobs.map(job => job.promise));
+    if (this.store) await this.store.save([]);
+    await Promise.all(removed.map(track => track.directory ? rm(track.directory, { recursive: true, force: true }) : null));
   }
   move(id, direction) {
     if (![1, -1].includes(direction)) throw new Error('Invalid queue direction.');
@@ -137,7 +163,9 @@ export class QueueEngine extends EventEmitter {
     if (!track || track.demo || this.jobs.has(id)) return;
     if (this.lyricsRetries.has(id)) throw new Error('Wait for the lyrics search to finish before retrying all processing.');
     if (this.renders.has(id)) throw new Error('Cancel the export before retrying.');
-    if (this.voiceJobs.has(id)) throw new Error('Wait for voice separation before retrying.');
+    // Automatic stem separation must not block a retry the reviewer asked for.
+    const voice = this.voiceJobs.get(id); voice?.controller.abort();
+    if (voice) await voice.promise.catch(() => {});
     if (track.directory) await rm(track.directory, { recursive: true, force: true });
     Object.assign(track, { status: 'queued', steps: steps(), error: '', result: null, lyrics: null, candidates: [], transcript: [], audioUrl: null, audioPath: null, reviewed: false, voiceMix: undefined });
     this.publish(); this.pump();
@@ -175,7 +203,7 @@ export class QueueEngine extends EventEmitter {
     const candidate = track.candidates.find(row => row.id === candidateId);
     if (!candidate) throw new Error('Choose a result from this track’s lyrics search.');
     if (this.renders.has(id)) throw new Error('Cancel the export before changing lyrics.');
-    track.lyrics = candidate; track.reviewed = false; track.steps.lyrics = { state: 'done', message: `${candidate.source || 'LRCLIB'} version selected by you` };
+    track.lyrics = candidate; track.album = candidate.album || ''; track.reviewed = false; track.steps.lyrics = { state: 'done', message: `${candidate.source || 'LRCLIB'} version selected by you` };
     if (this.jobs.has(id)) track.result = prepareLines(reconcile(track.lyrics, track.transcript, track.duration), track.lyrics); else this.finish(track);
     this.publish();
     if (!this.jobs.has(id) && this.services.align) return this.align(id);
@@ -211,7 +239,7 @@ export class QueueEngine extends EventEmitter {
     const track = this.tracks.find(track => track.id === id);
     if (!track?.audioPath || this.jobs.has(id) || this.renders.has(id)) throw new Error('Wait for processing or cancel the export before editing.');
     const lines = validateLines(input?.lines, track.duration);
-    track.font = validateFont(input.font || 'Arial'); track.reviewed = Boolean(input.reviewed);
+    track.font = validateFont(input.font || DEFAULT_FONT); track.reviewed = Boolean(input.reviewed);
     track.result = { ...(track.result || {}), source: track.result?.source || 'manual', timing: 'manual', agreement: track.result?.agreement ?? null, lines, notes: [track.result?.source === 'transcript' ? 'Edited timing is used for preview and export. Transcript wording and verse breaks remain unverified.' : 'Reviewer timing is used for preview and export.'] };
     if (track.result.source === 'transcript') track.result.lines = lines.map(line => ({ ...line, review: true }));
     track.status = track.result.lines.some(line => line.review) ? 'review' : 'ready'; this.publish();
@@ -224,14 +252,15 @@ export class QueueEngine extends EventEmitter {
     track.reviewed = false; this.finish(track); track.steps.lyrics = { state: 'done', message: 'Reviewer supplied lyrics' };
     track.steps.alignment = { state: 'waiting', message: 'Use Align lyrics or set timing manually.' }; this.publish();
   }
-  async exportVideo(id, output, mode) {
+  async exportVideo(id, output, mode, format = 'mp4') {
     const track = this.tracks.find(track => track.id === id);
     if (!track?.audioPath || this.jobs.has(id) || this.renders.has(id)) throw new Error('Wait for processing or the current export to finish.');
     const issue = exportIssue(track); if (issue) throw new Error(issue);
     const controller = new AbortController();
-    track.export = { state: 'running', progress: 0, message: 'Rendering 1080p MP4' }; this.publish();
+    const formatLabels = { mp4: 'Rendering 1080p MP4', webm: 'Rendering WebM', gif: 'Rendering animated GIF', lrc: 'Writing LRC lyrics', srt: 'Writing SRT subtitles' };
+    track.export = { state: 'running', progress: 0, message: formatLabels[format] || 'Exporting' }; this.publish();
     const render = { controller, promise: null }; this.renders.set(id, render);
-    render.promise = exportVideo({ ...track, result: structuredClone(track.result) }, output, this.settings, controller.signal, progress => { track.export.progress = progress; this.publish(false); }, { mode })
+    render.promise = exportVideo({ ...track, result: structuredClone(track.result) }, output, this.settings, controller.signal, progress => { track.export.progress = progress; this.publish(false); }, { mode, format })
       .then(file => { track.export = { state: 'done', progress: 100, message: `Saved ${path.basename(file)}` }; return file; })
       .catch(error => { track.export = { state: controller.signal.aborted ? 'cancelled' : 'error', progress: 0, message: controller.signal.aborted ? 'Export cancelled' : error.message }; if (!controller.signal.aborted) throw error; return null; })
       .finally(() => { this.renders.delete(id); this.publish(); });
@@ -264,13 +293,15 @@ export class QueueEngine extends EventEmitter {
       update('audio', 'running', 'Extracting a temporary MP3');
       track.audioPath = await this.services.extract(track.url, track.directory, settings, signal);
       signal.throwIfAborted(); track.audioUrl = `norae-audio://track/${track.id}`; update('audio', 'done', 'Temporary MP3 ready');
+      // Stems power the mixer and run without blocking or failing the song pipeline.
+      void this.startVoiceMix(track).catch(() => {});
       // Both branches start after extraction, independently. Neither awaits or reads the other.
       await Promise.allSettled([
         (async () => {
           update('lyrics', 'running', 'Searching LRCLIB');
           try {
             const { candidates, selected } = await this.services.fetchLyrics(track, signal, settings);
-            signal.throwIfAborted(); track.candidates = candidates; track.lyrics = selected;
+            signal.throwIfAborted(); track.candidates = candidates; track.lyrics = selected; track.album = selected?.album || '';
             track.result = prepareLines(reconcile(track.lyrics, track.transcript, track.duration), track.lyrics);
             update('lyrics', selected ? 'done' : 'review', selected ? `Matching lyrics found on ${selected.source || 'LRCLIB'}` : candidates.length ? 'Choose the matching recording in Cross-check' : 'No matching database lyrics found');
           } catch (error) { update('lyrics', 'error', error.message); }
@@ -285,6 +316,7 @@ export class QueueEngine extends EventEmitter {
       ]);
       signal.throwIfAborted(); this.finish(track); await this.performAlignment(track, signal); signal.throwIfAborted();
     } catch (error) {
+      this.voiceJobs.get(track.id)?.controller.abort();
       track.status = 'error'; track.error = signal.aborted ? 'Cancelled.' : error.message;
       if (track.steps.audio.state === 'running') update('audio', 'error', track.error);
     } finally {

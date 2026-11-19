@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { QueueEngine } from '../electron/engine.mjs';
 import { fetchLyrics } from '../electron/lrclib.mjs';
+import { DEFAULT_FONT } from '../shared/karaoke.mjs';
 
 const input = { url: 'https://youtu.be/abcdefghijk', singer: 'Alex' };
 const lyrics = { id: 1, title: 'Home', artist: 'Singer', syncedLyrics: '[00:01]Bring the sunshine home', plainLyrics: 'Bring the sunshine home' };
@@ -243,4 +244,49 @@ test('partial forced alignment is reviewable and retains valid reading timing in
   assert.equal(track.steps.alignment.state, 'review'); assert.equal(track.result.timing, 'partial');
   assert.deepEqual(track.result.lines[0].words.map(word => word.start), [1, null, 2.1, 4.1]);
   assert.equal(track.status, 'review'); assert.match(track.steps.alignment.message, /3 of 4/);
+});
+
+test('voice separation starts automatically after extraction and a stem failure never fails the song', async t => {
+  const separated = [];
+  const engine = await create({ separateVoiceMix: async track => { separated.push(track.id); throw new Error('demucs missing'); } });
+  t.after(() => engine.close()); const id = engine.add(input); await finish(engine);
+  assert.deepEqual(separated, [id]);
+  const [track] = engine.snapshot();
+  assert.equal(track.voiceMix, 'error'); assert.equal(track.steps.transcript.state, 'done'); assert.ok(track.audioUrl);
+});
+test('album comes from the LRCLIB recording, not the source mix label', async t => {
+  const albumLyrics = { ...lyrics, album: 'Real Album' };
+  const engine = await create({
+    inspect: async () => ({ title: 'Home', artist: 'Singer', duration: 10, album: 'Daily Pop Mix' }),
+    fetchLyrics: async () => ({ candidates: [albumLyrics], selected: albumLyrics }),
+  });
+  t.after(() => engine.close()); engine.add(input); await finish(engine);
+  assert.equal(engine.snapshot()[0].album, 'Real Album');
+});
+test('a recording chosen in Cross-check replaces the album with its own', async t => {
+  const first = { ...lyrics, album: 'Daily Pop Mix' };
+  const second = { ...lyrics, id: 2, album: 'Studio Album' };
+  const engine = await create({ fetchLyrics: async () => ({ candidates: [first, second], selected: first }) });
+  t.after(() => engine.close()); const id = engine.add(input); await finish(engine);
+  assert.equal(engine.snapshot()[0].album, 'Daily Pop Mix');
+  engine.selectLyrics(id, 2);
+  assert.equal(engine.snapshot()[0].album, 'Studio Album');
+});
+test('two songs never split stems at the same time', async t => {
+  const order = []; let running = 0, peak = 0;
+  const engine = await create({ separateVoiceMix: async track => { running++; peak = Math.max(peak, running); order.push(track.title); await new Promise(resolve => setTimeout(resolve, 5)); running--; } });
+  t.after(() => engine.close());
+  engine.add(input); engine.add({ ...input, url: 'https://youtu.be/zzzzzzzzzzz' });
+  await finish(engine);
+  while (engine.voiceJobs.size) await Promise.all([...engine.voiceJobs.values()].map(job => job.promise));
+  assert.equal(peak, 1); assert.deepEqual(order.length, 2);
+  assert.ok(engine.snapshot().every(track => track.voiceMix === 'ready'));
+});
+
+test('new songs start on the house font while an explicit choice survives a save', async t => {
+  const engine = await create(); t.after(() => engine.close());
+  const id = engine.add(input); await finish(engine);
+  assert.equal(engine.snapshot()[0].font, DEFAULT_FONT);
+  engine.saveTiming(id, { lines: engine.snapshot()[0].result.lines, font: 'Verdana', reviewed: true });
+  assert.equal(engine.snapshot()[0].font, 'Verdana');
 });
