@@ -36,7 +36,7 @@ export type VocalistAPI = {
   align(id: string): Promise<void>; saveTiming(id: string, input: {lines: LyricLine[]; font: string; reviewed: boolean}): Promise<void>;
   replaceLyrics(id: string, text: string): Promise<void>;
   chooseCover(id: string): Promise<void>;
-  exportVideo(id: string, mode?: LyricsMode, format?: ExportFormat): Promise<string | null>; cancelExport(id: string): Promise<void>;
+  exportVideo(id: string, mode?: LyricsMode, format?: ExportFormat, sync?: number): Promise<string | null>; cancelExport(id: string): Promise<void>;
   saveProject(id: string): Promise<string | null>; loadProject(id: string): Promise<boolean>;
   getSettings(): Promise<Settings>; saveSettings(settings: Settings): Promise<Settings>; check(): Promise<Dependency[]>;
   chooseModel(): Promise<string | null>; chooseCredentials(): Promise<string | null>; fullscreen(enabled: boolean): Promise<void>;

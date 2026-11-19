@@ -251,7 +251,7 @@ export class QueueEngine extends EventEmitter {
     track.reviewed = false; this.finish(track); track.steps.lyrics = { state: 'done', message: 'Reviewer supplied lyrics' };
     track.steps.alignment = { state: 'waiting', message: 'Use Align lyrics or set timing manually.' }; this.publish();
   }
-  async exportVideo(id, output, mode, format = 'mp4') {
+  async exportVideo(id, output, mode, format = 'mp4', sync = 0) {
     const track = this.tracks.find(track => track.id === id);
     if (!track?.audioPath || this.jobs.has(id) || this.renders.has(id)) throw new Error('Wait for processing or the current export to finish.');
     const issue = exportIssue(track); if (issue) throw new Error(issue);
@@ -259,7 +259,7 @@ export class QueueEngine extends EventEmitter {
     const formatLabels = { mp4: 'Rendering 1080p MP4', webm: 'Rendering WebM', gif: 'Rendering animated GIF', lrc: 'Writing LRC lyrics', srt: 'Writing SRT subtitles' };
     track.export = { state: 'running', progress: 0, message: formatLabels[format] || 'Exporting' }; this.publish();
     const render = { controller, promise: null }; this.renders.set(id, render);
-    render.promise = exportVideo({ ...track, result: structuredClone(track.result) }, output, this.settings, controller.signal, progress => { track.export.progress = progress; this.publish(false); }, { mode, format })
+    render.promise = exportVideo({ ...track, result: structuredClone(track.result) }, output, this.settings, controller.signal, progress => { track.export.progress = progress; this.publish(false); }, { mode, format, sync })
       .then(file => { track.export = { state: 'done', progress: 100, message: `Saved ${path.basename(file)}` }; return file; })
       .catch(error => { track.export = { state: controller.signal.aborted ? 'cancelled' : 'error', progress: 0, message: controller.signal.aborted ? 'Export cancelled' : error.message }; if (!controller.signal.aborted) throw error; return null; })
       .finally(() => { this.renders.delete(id); this.publish(); });

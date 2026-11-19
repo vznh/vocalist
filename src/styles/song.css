@@ -9,10 +9,10 @@
 .source-note { font-size: 12px; color: var(--muted); margin-top: 12px; }
 .song-warnings { margin-top: 12px; border: 1px solid #e5d7b4; background: #f6efdf; color: #594728; font-size: 12px; }
 .song-warnings:empty { display: none; }
-.song-warnings > * { padding: 8px 12px; border-top: 1px solid transparent; overflow-wrap: anywhere; }
+.song-warnings > * { padding: 11px 14px; border-top: 1px solid transparent; overflow-wrap: anywhere; }
 .song-warnings > * + * { border-top-color: #e5d7b4; }
 .song-warnings :is(.text-button, small) { font-size: inherit; }
-.song-warnings .text-button { margin-block: -6px; padding: 6px 10px; border: 1px solid #dbc9a1; border-radius: var(--corner-radius); background: rgb(255 255 255 / 55%); color: inherit; }
+.song-warnings .text-button { margin-block: -9px; padding: 9px 12px; border: 1px solid #dbc9a1; border-radius: var(--corner-radius); background: rgb(255 255 255 / 55%); color: inherit; }
 .song-warnings .text-button:enabled:hover { background: rgb(255 255 255 / 85%); border-color: #c9b489; text-decoration: none; }
 .song-warnings .text-button:focus-visible { outline-offset: 1px; }
 .lyrics-retry, .reading-timing { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }

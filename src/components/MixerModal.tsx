@@ -2,9 +2,10 @@ import type { Track } from '../types';
 import { api, type Act } from '../api';
 import type { useAudioMixer } from '../useAudioMixer';
 import { Modal } from './Modal';
+import { DEFAULT_SYNC } from '../../shared/karaoke.mjs';
 
 export type Mix = { bass: number; treble: number; lyrics: number };
-export const neutralMix: Mix = { bass: 0, treble: 0, lyrics: 0 };
+export const defaultMix: Mix = { bass: 0, treble: 0, lyrics: DEFAULT_SYNC };
 
 const mixerControls = [
   { key: 'bass', label: 'Bass', min: -12, max: 12, step: 1, unit: 'dB' },
@@ -43,6 +44,6 @@ export function MixerModal({ track, mix, setMix, voice, setVoice, voiceState, en
     </div>}
     {voiceState === 'error' && <p className="mixer-note" role="status">Voice tracks could not load. The original mix is playing.</p>}
     {track?.voiceMix === 'ready' && voiceState === 'loading' && <p className="mixer-note" role="status">Loading voice tracks…</p>}
-    <button className="text-button mixer-reset" type="button" onClick={() => { setMix(() => neutralMix); setVoice(100); }}>Reset mixer</button>
+    <button className="text-button mixer-reset" type="button" onClick={() => { setMix(() => defaultMix); setVoice(100); }}>Reset mixer</button>
   </Modal>;
 }

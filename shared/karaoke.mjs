@@ -4,7 +4,7 @@ import { speakerColorMap, extractAlbumColors, mixHexColors } from './colors.mjs'
 import { VIDEO_WIDTH, VIDEO_HEIGHT, DEFAULT_FONT, unitsFor, displayLyricText, unitProgress } from './karaoke-common.mjs';
 import { drawScrollingLyrics } from './scrolling.mjs';
 export { FADE_SECONDS, clamp, hasCompleteWordTiming, lineTiming, lyricPairs, frameState } from './lyric-sequence.mjs';
-export { VIDEO_WIDTH, VIDEO_HEIGHT, DEFAULT_FONT, fonts, unitsFor, displayLyricText, unitProgress } from './karaoke-common.mjs';
+export { VIDEO_WIDTH, VIDEO_HEIGHT, DEFAULT_SYNC, DEFAULT_FONT, fonts, unitsFor, displayLyricText, unitProgress } from './karaoke-common.mjs';
 export { ARTIST_COLORS, speakerColorMap, extractAlbumColors, lerpHexColor, mixHexColors } from './colors.mjs';
 export { scrollingState } from './scrolling.mjs';
 

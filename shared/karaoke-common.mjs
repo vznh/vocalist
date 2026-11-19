@@ -3,6 +3,8 @@ import { clamp } from './lyric-sequence.mjs';
 export const VIDEO_WIDTH = 1920;
 export const VIDEO_HEIGHT = 1080;
 
+// A small positive offset lets the voice land before the highlight moves.
+export const DEFAULT_SYNC = .15;
 // Schengen is the house face; the rest stay as fallbacks when it is unavailable.
 export const DEFAULT_FONT = 'ABC Schengen A Trial';
 export const fonts = [

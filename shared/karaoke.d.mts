@@ -3,6 +3,7 @@ export type LyricsMode = 'karaoke' | 'scrolling';
 export const VIDEO_WIDTH: number;
 export const VIDEO_HEIGHT: number;
 export const DEFAULT_FONT: string;
+export const DEFAULT_SYNC: number;
 export const fonts: { name: string; description: string }[];
 export const FADE_SECONDS: number;
 export function unitsFor(text: string): TimedUnit[];

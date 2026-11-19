@@ -18,11 +18,11 @@ const exportChoices: { id: ExportFormat; label: string; hint: string; group: 'Vi
 ];
 
 type Props = {
-  track: Track; mode: LyricsMode; setMode: (mode: LyricsMode) => void; exportBlocker: string | null; act: Act;
+  track: Track; mode: LyricsMode; setMode: (mode: LyricsMode) => void; exportBlocker: string | null; sync: number; act: Act;
   openMixer: () => void; openReview: () => void; openTiming: () => void;
 };
 
-export function SongHeader({ track, mode, setMode, exportBlocker, act, openMixer, openReview, openTiming }: Props) {
+export function SongHeader({ track, mode, setMode, exportBlocker, sync, act, openMixer, openReview, openTiming }: Props) {
   const primaryArtist = primaryArtistFor(track);
   const releaseDetails = [track.album || track.lyrics?.album, track.releaseYear].filter(Boolean).join(', ');
   return <div className="song-heading">
@@ -44,7 +44,7 @@ export function SongHeader({ track, mode, setMode, exportBlocker, act, openMixer
         ] }]} />
       <MenuButton label="Export" title={exportBlocker || 'Export in the selected lyrics mode'} disabled={Boolean(exportBlocker)}
         groups={['Video', 'Lyrics file'].map(name => ({ name, items: exportChoices.filter(choice => choice.group === name).map(choice => ({
-          id: choice.id, label: choice.label, hint: choice.hint, onSelect: () => void act(() => api!.exportVideo(track.id, mode, choice.id)),
+          id: choice.id, label: choice.label, hint: choice.hint, onSelect: () => void act(() => api!.exportVideo(track.id, mode, choice.id, sync)),
         })) }))} />
     </div>
   </div>;

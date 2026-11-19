@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('norae', {
   saveTiming: (id, input) => ipcRenderer.invoke('room:timing', id, input),
   replaceLyrics: (id, text) => ipcRenderer.invoke('room:replaceLyrics', id, text),
   chooseCover: (id) => ipcRenderer.invoke('room:cover', id),
-  exportVideo: (id, mode, format) => ipcRenderer.invoke('room:export', id, mode, format),
+  exportVideo: (id, mode, format, sync) => ipcRenderer.invoke('room:export', id, mode, format, sync),
   cancelExport: (id) => ipcRenderer.invoke('room:cancelExport', id),
   saveProject: (id) => ipcRenderer.invoke('room:saveProject', id),
   loadProject: (id) => ipcRenderer.invoke('room:loadProject', id),

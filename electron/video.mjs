@@ -22,16 +22,19 @@ export const EXPORT_FORMATS = {
   srt: { ext: 'srt', label: 'SRT subtitles' },
 };
 
-export async function exportLyrics(track, output, format) {
+export async function exportLyrics(track, output, format, shift = 0) {
   validateLines(track.result?.lines, track.duration, { requireTiming: true });
-  const text = format === 'lrc' ? toLrc(track.result.lines, { title: track.title, artist: track.artist }) : toSrt(track.result.lines);
+  const text = format === 'lrc' ? toLrc(track.result.lines, { title: track.title, artist: track.artist, shift }) : toSrt(track.result.lines, { shift });
   await writeFile(output, text);
   return output;
 }
 
-export async function exportVideo(track, output, settings, signal, progress = () => {}, { width = VIDEO_WIDTH, height = VIDEO_HEIGHT, fps = 30, mode = 'karaoke', format = 'mp4' } = {}) {
+// Preview and export share one mapping so the rendered MP4 matches the room.
+export const lyricsPosition = (frameTime, sync = 0) => Math.max(0, frameTime - (Number.isFinite(sync) ? sync : 0));
+
+export async function exportVideo(track, output, settings, signal, progress = () => {}, { width = VIDEO_WIDTH, height = VIDEO_HEIGHT, fps = 30, mode = 'karaoke', format = 'mp4', sync = 0 } = {}) {
   signal?.throwIfAborted();
-  if (format === 'lrc' || format === 'srt') return exportLyrics(track, output, format);
+  if (format === 'lrc' || format === 'srt') return exportLyrics(track, output, format, sync);
   const preset = EXPORT_FORMATS[format];
   if (!preset) throw new Error(`Unsupported export format: ${format}`);
   validateLines(track.result?.lines, track.duration, { requireTiming: true });
@@ -96,7 +99,7 @@ export async function exportVideo(track, output, settings, signal, progress = ()
     for (let frame = 0; frame < frames; frame++) {
       signal?.throwIfAborted();
       if (failure || child.exitCode !== null) throw failure || new Error(stderr || 'Video encoder stopped.');
-      drawKaraoke(ctx, track.result.lines, frame / fps, track.duration, { font: resolved, mode, copyright: track.lyrics?.copyright || '', artwork });
+      drawKaraoke(ctx, track.result.lines, lyricsPosition(frame / fps, sync), track.duration, { font: resolved, mode, copyright: track.lyrics?.copyright || '', artwork });
       const pixels = ctx.getImageData(0, 0, width, height).data;
       const bytes = Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength);
       if (!child.stdin.write(bytes)) await once(child.stdin, 'drain', { signal });

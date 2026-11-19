@@ -19,9 +19,9 @@ if (devUrl && !/^http:\/\/127\.0\.0\.1:\d+$/.test(devUrl)) throw new Error('Inva
 // Keep existing libraries and settings when the product name changes.
 app.setPath('userData', process.env.NORAE_TEST_DATA || path.join(app.getPath('appData'), 'norae'));
 protocol.registerSchemesAsPrivileged([{ scheme: 'norae-audio', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
-// The light tile carries dark artwork so the Dock icon reads on light and dark backgrounds.
+// macOS draws app icons as rounded tiles, so the Dock gets the masked art rather than the raw square.
 function dockIconPath() {
-  const file = nativeTheme.shouldUseDarkColors ? "logo-black.png" : "logo-white.png";
+  const file = nativeTheme.shouldUseDarkColors ? "dock-dark.png" : "dock-light.png";
   return app.isPackaged ? path.join(process.resourcesPath, "build", file) : path.join(directory, "../build", file);
 }
 function applyDockIcon() {
@@ -88,15 +88,16 @@ else {
         engine.publish();
       }
     });
-    handle('room:export', async (id, mode = 'karaoke', format = 'mp4') => {
+    handle('room:export', async (id, mode = 'karaoke', format = 'mp4', sync = 0) => {
       if (mode !== 'karaoke' && mode !== 'scrolling') throw new Error('Choose a lyrics mode.');
+      if (!Number.isFinite(sync) || Math.abs(sync) > 5) throw new Error('Lyrics sync must be between -5 and 5 seconds.');
       if (!(format in EXPORT_FORMATS)) throw new Error('Choose an export format.');
       const track = selectedTrack(id);
       const issue = exportIssue(track); if (issue) throw new Error(issue);
       const base = `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}`;
       const standardFilters = { mp4: { name: 'MP4 video', extensions: ['mp4'] }, webm: { name: 'WebM video', extensions: ['webm'] }, gif: { name: 'Animated GIF', extensions: ['gif'] }, lrc: { name: 'LRC lyrics', extensions: ['lrc'] }, srt: { name: 'SRT subtitles', extensions: ['srt'] } };
       const result = await dialog.showSaveDialog(window, { title: `Export ${EXPORT_FORMATS[format].label}`, defaultPath: `${base}.${EXPORT_FORMATS[format].ext}`, filters: [standardFilters[format]] });
-      return result.canceled ? null : engine.exportVideo(id, result.filePath, mode, format);
+      return result.canceled ? null : engine.exportVideo(id, result.filePath, mode, format, sync);
     });
     handle('room:cancelExport', id => engine.cancelExport(id));
     handle('room:saveProject', async id => {

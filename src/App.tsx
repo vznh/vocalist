@@ -13,7 +13,7 @@ import { IconButton } from './components/IconButton';
 import { KaraokePreview } from './components/KaraokePreview';
 import { Lyrics } from './components/Lyrics';
 import { LyricsRetry } from './components/LyricsRetry';
-import { MixerModal, neutralMix } from './components/MixerModal';
+import { MixerModal, defaultMix } from './components/MixerModal';
 import { Modal } from './components/Modal';
 import { PlayerBar } from './components/PlayerBar';
 import { QueueInput } from './components/QueueInput';
@@ -40,7 +40,7 @@ export default function App() {
   const [timingOpen, setTimingOpen] = useState(false);
   const [timingDirty, setTimingDirty] = useState(false);
   const [mixerOpen, setMixerOpen] = useState(false);
-  const [mix, setMix] = useState(neutralMix);
+  const [mix, setMix] = useState(defaultMix);
   const [stage, setStage] = useState(false);
   const [mode, setMode] = useState<LyricsMode>(() => localStorage.getItem(MODE_KEY) === 'scrolling' ? 'scrolling' : 'karaoke');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -147,7 +147,7 @@ export default function App() {
           <QueuePanel tracks={tracks} selectedId={selectedId} select={select} remove={remove} act={act} />
           <section className="song-panel" aria-label="Lyrics">
             {selected ? <>
-              <SongHeader track={selected} mode={mode} setMode={changeMode} exportBlocker={exportBlocker} act={act}
+              <SongHeader track={selected} mode={mode} setMode={changeMode} exportBlocker={exportBlocker} sync={mix.lyrics} act={act}
                 openMixer={() => { setMixerOpen(true); void act(enableMixer); }} openReview={() => setReviewOpen(true)} openTiming={() => setTimingOpen(true)} />
               <div className="song-warnings">
                 {exportWarning && <p>{exportWarning}{(exportWarning.startsWith('Line ') || exportWarning.startsWith('Provide ')) && ' Open Edit timing to correct lyric boundaries.'}</p>}

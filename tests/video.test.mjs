@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm, access, readdir, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { exportVideo, saveTimingProject } from '../electron/video.mjs';
+import { exportVideo, saveTimingProject, lyricsPosition } from '../electron/video.mjs';
 import { writeDemo } from '../electron/demo.mjs';
 
 test('cancelled rendering preserves an existing destination and removes the temporary render', async t => {
@@ -35,4 +35,23 @@ test('timing project persists reviewer units and recording identity without priv
   await saveTimingProject(track, file); const saved = JSON.parse(await readFile(file, 'utf8'));
   assert.equal(saved.version, 1); assert.equal(saved.url, track.url); assert.equal(saved.lines[0].words[1].end, 4); assert.equal(saved.copyright, 'Fixture copyright');
   assert.equal('audioPath' in saved, false); assert.equal('directory' in saved, false);
+});
+
+test('the sync offset shifts rendered lyrics without going before the start of the song', () => {
+  assert.equal(lyricsPosition(10, .15), 9.85);
+  assert.equal(lyricsPosition(10, -.5), 10.5);
+  assert.equal(lyricsPosition(.1, .15), 0);
+  assert.equal(lyricsPosition(10), 10);
+  assert.equal(lyricsPosition(10, Number.NaN), 10);
+});
+
+test('lyric files shift with the sync offset so LRC and SRT match the video', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'norae-sync-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const track = { title: 'Fixture', artist: 'Fixture', duration: 10, result: { lines: [{ text: 'Hold on', start: 1, end: 3, words: [{ text: 'Hold on', start: 1, end: 3 }] }] } };
+  const lrc = path.join(directory, 'sync.lrc'), srt = path.join(directory, 'sync.srt');
+  await exportVideo(track, lrc, { ffmpeg: 'ffmpeg' }, new AbortController().signal, () => {}, { format: 'lrc', sync: .15 });
+  await exportVideo(track, srt, { ffmpeg: 'ffmpeg' }, new AbortController().signal, () => {}, { format: 'srt', sync: .15 });
+  assert.match(await readFile(lrc, 'utf8'), /\[00:01\.15\]Hold on/);
+  assert.match(await readFile(srt, 'utf8'), /00:01,150 --> 00:03,150/);
 });
