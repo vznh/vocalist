@@ -21,7 +21,7 @@ const lines = [
 try {
   const engine = await QueueEngine.open({ root: path.join(userData, 'library/audio'), persistencePath: path.join(userData, 'library/queue.json'), settings: {} });
   const id = await engine.demo(), track = engine.tracks[0];
-  track.album = 'Test album'; track.releaseYear = 2026;
+  track.lyrics = { album: 'Test album' }; track.album = 'Test album'; track.releaseYear = 2026;
   track.duration = 6; track.result.lines = structuredClone(lines);
   track.result.lines[0].words[0].start = track.result.lines[0].words[0].end = null;
   await engine.close();
@@ -97,6 +97,7 @@ try {
   await page.getByRole('menuitemradio', { name: /Edit timing/ }).click();
   const timing = page.getByRole('dialog', { name: 'Edit timing' });
   await timing.getByRole('combobox', { name: 'Lyric line', exact: true }).selectOption('2');
+  await timing.getByText('Fine-tune numbers', { exact: true }).click();
   await timing.getByRole('spinbutton', { name: 'Start of unit 1', exact: true }).fill('2.3');
   await timing.getByRole('button', { name: 'Save timing', exact: true }).click();
   await timing.getByRole('status').filter({ hasText: 'Timing saved' }).waitFor();

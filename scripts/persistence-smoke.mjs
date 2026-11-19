@@ -67,7 +67,9 @@ try {
   page = await launch();
   await page.getByRole('heading', { name: 'Original persistence fixture', exact: true }).waitFor();
   await app.evaluate(() => { globalThis.restoreCalls = 0; globalThis.fetch = async () => { globalThis.restoreCalls++; throw new Error('Restoring must never call a provider'); }; });
-  assert.deepEqual(await page.evaluate(() => window.norae.snapshot()), saved);
+  // An interrupted voice separation is not resumed on restore, so its in-progress state is not compared.
+  const settled = tracks => tracks.map(({ voiceMix, ...track }) => voiceMix === undefined || voiceMix === 'preparing' ? track : { ...track, voiceMix });
+  assert.deepEqual(settled(await page.evaluate(() => window.norae.snapshot())), settled(saved));
   await page.waitForFunction(() => document.querySelector('audio').readyState >= 2);
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('audio').currentTime > .2);
