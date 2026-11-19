@@ -1,3 +1,4 @@
+import { stemPath } from './vocals.mjs';
 import { prepareArtwork, COVER_SOURCE_LIMIT } from './artwork.mjs';
 import { app, BrowserWindow, ipcMain, protocol, dialog, shell } from 'electron';
 import path from 'node:path';
@@ -15,7 +16,7 @@ const devUrl = process.env.NORAE_DEV_URL;
 if (devUrl && !/^http:\/\/127\.0\.0\.1:\d+$/.test(devUrl)) throw new Error('Invalid development URL.');
 // Keep existing libraries and settings when the product name changes.
 app.setPath('userData', process.env.NORAE_TEST_DATA || path.join(app.getPath('appData'), 'norae'));
-protocol.registerSchemesAsPrivileged([{ scheme: 'norae-audio', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: 'norae-audio', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 const hasLock = app.requestSingleInstanceLock();
 let window, engine, quitting = false;
 if (!hasLock) app.quit();
@@ -32,11 +33,17 @@ else {
     if (!settings.model) { try { await stat(localModel); settings.model = localModel; } catch {} }
     const library = path.join(userData, 'library');
     engine = await QueueEngine.open({ root: path.join(library, 'audio'), persistencePath: path.join(library, 'queue.json'), settings });
-    protocol.handle('norae-audio', request => {
+    protocol.handle('norae-audio', async request => {
       const url = new URL(request.url);
-      const track = url.hostname === 'track' && engine.tracks.find(track => track.id === url.pathname.slice(1));
+      const [id, stem, ...extra] = url.pathname.slice(1).split('/');
+      const track = !extra.length && url.hostname === 'track' && engine.tracks.find(track => track.id === id);
       if (!track?.audioPath || !['GET', 'HEAD'].includes(request.method)) return new Response('Not found', { status: 404 });
-      return audioResponse(request, track.audioPath);
+      if (stem && (track.voiceMix !== 'ready' || !['vocals', 'instrumental'].includes(stem))) return new Response('Not found', { status: 404 });
+      const response = await audioResponse(request, stem ? stemPath(track, stem) : track.audioPath);
+      const origin = request.headers.get('origin');
+      const appOrigin = devUrl ? new URL(devUrl).origin : 'null';
+      if (origin === appOrigin) response.headers.set('Access-Control-Allow-Origin', appOrigin);
+      return response;
     });
     const handle = (channel, fn) => ipcMain.handle(channel, (event, ...args) => {
       if (event.sender !== window?.webContents || event.senderFrame !== window?.webContents.mainFrame) throw new Error('Untrusted sender.');
@@ -44,6 +51,7 @@ else {
     });
     handle('room:snapshot', () => engine.snapshot());
     handle('room:add', input => engine.add(input));
+    handle('room:prepareVoiceMix', id => engine.prepareVoiceMix(id));
     handle('room:demo', () => engine.demo());
     handle('room:remove', id => engine.remove(id));
     handle('room:move', (id, direction) => engine.move(id, direction));

@@ -1,3 +1,4 @@
+import { hasVoiceMix, separateVoiceMix } from './vocals.mjs';
 import { repairSavedLyricCopy } from './lyric-contamination.mjs';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm } from 'node:fs/promises';
@@ -16,7 +17,7 @@ const step = () => ({ state: 'waiting', message: '' });
 const steps = () => ({ audio: step(), lyrics: step(), transcript: step(), alignment: step() });
 export class QueueEngine extends EventEmitter {
   constructor({ root, settings, services = providers, persistencePath }) {
-    super(); this.root = root; this.settings = settings; this.services = services; this.tracks = []; this.jobs = new Map(); this.lyricsRetries = new Map(); this.renders = new Map(); this.closed = false;
+    super(); this.root = root; this.settings = settings; this.services = services; this.tracks = []; this.jobs = new Map(); this.lyricsRetries = new Map(); this.voiceJobs = new Map(); this.renders = new Map(); this.closed = false;
     this.store = persistencePath ? new QueueStore({ file: persistencePath, audioRoot: root }) : null;
   }
   static async open(options) {
@@ -25,6 +26,7 @@ export class QueueEngine extends EventEmitter {
     if (engine.store) engine.tracks = await engine.store.load();
     let repairedQueue = false;
     for (const track of engine.tracks) {
+      if (await hasVoiceMix(track)) track.voiceMix = 'ready';
       if (!track.reviewed && track.result?.timing !== 'manual' && repairSavedLyricCopy(track)) repairedQueue = true;
       if (track.reviewed) continue;
       const repaired = repairReferenceTiming(track.result, track.lyrics, track.duration, track.transcript);
@@ -85,12 +87,31 @@ export class QueueEngine extends EventEmitter {
     this.tracks.push({ id, title: 'A little louder', artist: 'The vocalist demo', singer: 'Everyone', duration: 30, status: 'ready', steps: { audio: { state: 'done', message: 'Original synthesized instrumental' }, lyrics: { state: 'done', message: 'Illustrative original lyrics' }, transcript: { state: 'skipped', message: 'Demo fixture with no transcription' }, alignment: { state: 'skipped', message: 'Illustrative word timing' } }, candidates: [], lyrics: null, transcript: [], result: { source: 'demo', timing: 'demo', agreement: null, lines, notes: ['Original instrumental and illustrative timed lyrics. This demo does not run the YouTube or transcription pipeline.'] }, audioUrl: `norae-audio://track/${id}`, audioPath, directory, error: '', demo: true, font: 'Arial', reviewed: false, export: { state: 'idle', progress: 0, message: '' } });
     this.publish(); return id;
   }
+  async prepareVoiceMix(id) {
+    const track = this.tracks.find(track => track.id === id);
+    if (this.closed || !track?.audioPath || this.jobs.has(id)) throw new Error('Wait until the song is ready.');
+    if (this.voiceJobs.has(id) || track.voiceMix === 'ready') return;
+    const controller = new AbortController();
+    track.voiceMix = 'preparing';
+    const promise = separateVoiceMix(track, this.settings, controller.signal)
+      .then(() => { track.voiceMix = 'ready'; })
+      .catch(error => {
+        track.voiceMix = 'error';
+        if (!controller.signal.aborted) throw new Error(`Voice separation failed. ${error.message}`);
+      })
+      .finally(() => { this.voiceJobs.delete(id); this.publish(false); });
+    this.voiceJobs.set(id, { controller, promise });
+    this.publish(false);
+    return promise;
+  }
   async remove(id) {
     const track = this.tracks.find(track => track.id === id); if (!track) return;
     this.tracks = this.tracks.filter(track => track.id !== id);
     const job = this.jobs.get(id); job?.controller.abort(); this.publish();
     const lyricsRetry = this.lyricsRetries.get(id); lyricsRetry?.controller.abort();
     const render = this.renders.get(id); render?.controller.abort();
+    const voice = this.voiceJobs.get(id); voice?.controller.abort();
+    await voice?.promise.catch(() => {});
     if (job) await job.promise;
     if (lyricsRetry) await lyricsRetry.promise.catch(() => {});
     if (render) await render.promise.catch(() => {});
@@ -116,8 +137,9 @@ export class QueueEngine extends EventEmitter {
     if (!track || track.demo || this.jobs.has(id)) return;
     if (this.lyricsRetries.has(id)) throw new Error('Wait for the lyrics search to finish before retrying all processing.');
     if (this.renders.has(id)) throw new Error('Cancel the export before retrying.');
+    if (this.voiceJobs.has(id)) throw new Error('Wait for voice separation before retrying.');
     if (track.directory) await rm(track.directory, { recursive: true, force: true });
-    Object.assign(track, { status: 'queued', steps: steps(), error: '', result: null, lyrics: null, candidates: [], transcript: [], audioUrl: null, audioPath: null, reviewed: false });
+    Object.assign(track, { status: 'queued', steps: steps(), error: '', result: null, lyrics: null, candidates: [], transcript: [], audioUrl: null, audioPath: null, reviewed: false, voiceMix: undefined });
     this.publish(); this.pump();
   }
   async retryLyrics(id) {
@@ -275,7 +297,7 @@ export class QueueEngine extends EventEmitter {
   }
   async close() {
     this.closed = true;
-    const jobs = [...this.jobs.values(), ...this.lyricsRetries.values(), ...this.renders.values(), ...(this.metadataRefresh ? [this.metadataRefresh] : [])];
+    const jobs = [...this.jobs.values(), ...this.lyricsRetries.values(), ...this.voiceJobs.values(), ...this.renders.values(), ...(this.metadataRefresh ? [this.metadataRefresh] : [])];
     for (const job of jobs) job.controller.abort();
     await Promise.allSettled(jobs.map(job => job.promise));
     if (this.store) await this.store.save(this.tracks);

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('norae', {
   snapshot: () => ipcRenderer.invoke('room:snapshot'),
   add: (input) => ipcRenderer.invoke('room:add', input),
+  prepareVoiceMix: id => ipcRenderer.invoke('room:prepareVoiceMix', id),
   demo: () => ipcRenderer.invoke('room:demo'),
   remove: (id) => ipcRenderer.invoke('room:remove', id),
   move: (id, direction) => ipcRenderer.invoke('room:move', id, direction),

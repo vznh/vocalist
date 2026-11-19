@@ -12,6 +12,7 @@ export type Track = {
   transcript: { text: string; start: number; end: number }[];
   result: { source: string; timing: string; agreement: number | null; lines: LyricLine[]; notes: string[] } | null;
   artwork?: string;
+  voiceMix?: 'preparing' | 'ready' | 'error';
   album?: string;
   releaseYear?: number;
   primaryArtist?: string;
@@ -25,6 +26,7 @@ export type Settings = { ytDlp: string; ffmpeg: string; whisper: string; model: 
 export type Dependency = { key: string; ok: boolean; detail: string; optional?: boolean };
 export type VocalistAPI = {
   snapshot(): Promise<Track[]>; add(input: { url: string; title?: string; artist?: string; singer?: string }): Promise<string>;
+  prepareVoiceMix(id: string): Promise<void>;
   demo(): Promise<string>; remove(id: string): Promise<void>; move(id: string, direction: number): Promise<void>; reorder(id: string, index: number): Promise<void>;
   retry(id: string): Promise<void>; retryLyrics(id: string): Promise<void>; selectLyrics(id: string, candidateId: number): Promise<void>;
   align(id: string): Promise<void>; saveTiming(id: string, input: {lines: LyricLine[]; font: string; reviewed: boolean}): Promise<void>;
