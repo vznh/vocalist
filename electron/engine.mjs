@@ -1,3 +1,4 @@
+import { repairSavedLyricCopy } from './lyric-contamination.mjs';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -24,6 +25,7 @@ export class QueueEngine extends EventEmitter {
     if (engine.store) engine.tracks = await engine.store.load();
     let repairedQueue = false;
     for (const track of engine.tracks) {
+      if (!track.reviewed && track.result?.timing !== 'manual' && repairSavedLyricCopy(track)) repairedQueue = true;
       if (track.reviewed) continue;
       const repaired = repairReferenceTiming(track.result, track.lyrics, track.duration, track.transcript);
       if (repaired !== track.result) {

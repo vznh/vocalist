@@ -1,3 +1,4 @@
+import { featuredArtistFor, sourcePrimaryArtist } from '../shared/artist-credit.mjs';
 import path from 'node:path';
 import { readFile, access } from 'node:fs/promises';
 import { run } from './process.mjs';
@@ -27,7 +28,9 @@ export async function inspect(url, settings, signal, overrides) {
   if (info.is_live || !Number.isFinite(info.duration) || info.duration <= 0 || info.duration > 900) throw new Error('Choose a finished track no longer than 15 minutes.');
   if (info.formats?.length && info.formats.every(format => /(?:^|_)preview(?:_|$)/i.test(format.format_id || ''))) throw new Error('Only a preview is available for this track. Choose a recording available in full.');
   const track = metadata(info, overrides);
-  return { ...track, originalMetadata: { title: String(info.track || info.title || track.title).slice(0, 1000), artist: track.artist } };
+  const primaryArtist = sourcePrimaryArtist(info, track, url, overrides);
+  const featuredArtist = featuredArtistFor({ ...track, title: typeof info.title === 'string' ? info.title : track.title });
+  return { ...track, ...(primaryArtist && (primaryArtist !== track.artist || primaryArtist.includes(',')) ? { primaryArtist } : {}), ...(featuredArtist ? { featuredArtist } : {}), originalMetadata: { title: String(info.track || info.title || track.title).slice(0, 1000), artist: track.artist } };
 }
 export async function extract(url, directory, settings, signal) {
   await run(settings.ytDlp, ['--ignore-config', '--no-playlist', '--no-progress', '--no-warnings', '--socket-timeout', '20', '--retries', '2', '--max-filesize', '100M', ...(settings.ffmpeg === 'ffmpeg' ? [] : ['--ffmpeg-location', settings.ffmpeg]), '-f', 'bestaudio/best', '-x', '--audio-format', 'mp3', '--audio-quality', '0', '-o', path.join(directory, 'audio.%(ext)s'), '--', url], { signal, timeout: 300000 });

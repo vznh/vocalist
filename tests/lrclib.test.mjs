@@ -68,3 +68,13 @@ test('cancellation interrupts retry backoff and prevents any further HTTP reques
   await assert.rejects(fetchLyrics(track, controller.signal, {}, { request: async () => { calls++; return success(); }, wait }), { name: 'AbortError' });
   assert.equal(calls, 1);
 });
+
+test('LRCLIB strips copied singer labels and recommendations while retaining verse boundaries', async () => {
+  const track = { title: 'Test song', artist: 'Cover singer', duration: 240 };
+  const plainLyrics = ['Original band', '(Cover singer)', 'Both', '', '[Verse 1]', 'You might also like', 'to hear me sing', '',
+    'You might also like', 'Other song', 'Other artist', 'Next song', 'Next artist', 'Last song', 'Last artist', '[Chorus]', 'Keep the chorus'].join('\n');
+  const { selected } = await fetchLyrics(track, undefined, {}, {
+    request: async () => Response.json([{ id: 101, trackName: track.title, artistName: track.artist, duration: track.duration, plainLyrics }]),
+  });
+  assert.equal(selected.plainLyrics, '[Verse 1]\nYou might also like\nto hear me sing\n\n[Chorus]\nKeep the chorus');
+});

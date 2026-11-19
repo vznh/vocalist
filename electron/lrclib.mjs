@@ -1,3 +1,5 @@
+import { cleanReferenceLyrics } from './lyric-contamination.mjs';
+import { primaryArtistFor } from '../shared/artist-credit.mjs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { rankCandidates } from './core.mjs';
 
@@ -17,6 +19,7 @@ function retryDelay(header, attempt, now) {
 }
 
 export async function fetchLyrics(track, signal, _settings, { request = globalThis.fetch, wait = waitForRetry, now = Date.now } = {}) {
+  track = { ...track, artist: primaryArtistFor(track) };
   const query = new URLSearchParams({ track_name: track.title, artist_name: track.artist });
   const url = `https://lrclib.net/api/search?${query}`;
   let rows;
@@ -49,7 +52,7 @@ export async function fetchLyrics(track, signal, _settings, { request = globalTh
   signal?.throwIfAborted();
   if (!Array.isArray(rows)) throw new Error('Unexpected response from LRCLIB.');
   try {
-    const candidates = rankCandidates(rows, track);
+    const candidates = rankCandidates(rows.map(row => typeof row?.plainLyrics === 'string' ? { ...row, plainLyrics: cleanReferenceLyrics(row.plainLyrics, row.artistName).text } : row), track);
     return { candidates, selected: candidates.find(candidate => candidate.exact) || null };
   } catch { throw new Error('Unexpected response from LRCLIB.'); }
 }

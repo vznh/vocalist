@@ -9,6 +9,10 @@ export type Track = {
   candidates: Candidate[]; lyrics: Candidate | null;
   transcript: { text: string; start: number; end: number }[];
   result: { source: string; timing: string; agreement: number | null; lines: LyricLine[]; notes: string[] } | null;
+  primaryArtist?: string;
+  featuredArtist?: string;
+  overrides?: { artist?: string };
+  originalMetadata?: { title: string; artist: string };
   audioUrl: string | null; error: string; demo: boolean; font: string; reviewed: boolean;
   export: { state: 'idle' | 'running' | 'done' | 'error' | 'cancelled'; progress: number; message: string };
 };

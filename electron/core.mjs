@@ -39,13 +39,23 @@ export function parseLrc(lrc = '', duration = 0) {
   return result.map((line, i) => ({ ...line, end: result[i + 1]?.start ?? Math.max(duration, line.start + 5) })).filter(line => line.text);
 }
 
+function matchingTitle(title, artist) {
+  const separator = title.match(/\s+[-–—|:]\s+/);
+  if (separator && normalize(title.slice(0, separator.index)) === normalize(artist)) {
+    return title.slice(separator.index + separator[0].length);
+  }
+  return title;
+}
+
 export function rankCandidates(rows, track) {
   return rows.filter(row => row && (row.plainLyrics || row.syncedLyrics) && Number.isSafeInteger(row.id)).map(row => {
-    const titleScore = similarity(row.trackName, track.title);
+    const comparableTitle = matchingTitle(row.trackName, row.artistName);
+    const titleScore = similarity(comparableTitle, track.title);
     const artistScore = similarity(row.artistName, track.artist);
-    const delta = Math.abs(Number(row.duration) - track.duration);
-    return { id: row.id, title: row.trackName, artist: row.artistName, album: row.albumName || '', duration: Number(row.duration), plainLyrics: String(row.plainLyrics || '').slice(0, 60000), syncedLyrics: String(row.syncedLyrics || '').slice(0, 80000), score: titleScore * .55 + artistScore * .35 + (delta <= 3 ? .1 : 0), exact: normalize(row.trackName) === normalize(track.title) && normalize(row.artistName) === normalize(track.artist) && delta <= 3 };
-  }).sort((a, b) => b.score - a.score).slice(0, 8);
+    const delta = Number.isFinite(row.duration) ? Math.abs(row.duration - track.duration) : Infinity;
+    return { id: row.id, title: row.trackName, artist: row.artistName, album: row.albumName || '', duration: Number(row.duration), plainLyrics: String(row.plainLyrics || '').slice(0, 60000), syncedLyrics: String(row.syncedLyrics || '').slice(0, 80000), score: titleScore * .55 + artistScore * .35 + (delta <= 3 ? .1 : 0), exact: normalize(comparableTitle) === normalize(track.title) && normalize(row.artistName) === normalize(track.artist) && delta <= 3, delta };
+  }).sort((a, b) => b.score - a.score || Number(Boolean(b.syncedLyrics)) - Number(Boolean(a.syncedLyrics)) || a.delta - b.delta)
+    .slice(0, 12).map(({ delta, ...candidate }) => candidate);
 }
 
 export function parseWhisper(data) {
