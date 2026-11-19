@@ -1,4 +1,7 @@
 import type { LyricLine, TimedUnit } from '../src/types';
+export type LyricsMode = 'karaoke' | 'scrolling';
+export const VIDEO_WIDTH: number;
+export const VIDEO_HEIGHT: number;
 export const fonts: { name: string; description: string }[];
 export const FADE_SECONDS: number;
 export function unitsFor(text: string): TimedUnit[];
@@ -8,4 +11,4 @@ export function lineTiming(line: LyricLine): {start: number | null; end: number 
 export function lyricPairs(lines: LyricLine[]): number[][];
 export function unitProgress(unit: TimedUnit, position: number): number;
 export function frameState(lines: LyricLine[], position: number, duration: number): {index: number; pairIndex: number; slot: number; opacity: number; leadInStart: number}[];
-export function drawKaraoke(ctx: CanvasRenderingContext2D, lines: LyricLine[], position: number, duration: number, options?: {font?: string; copyright?: string; readingBarWidth?: number}): void;
+export function drawKaraoke(ctx: CanvasRenderingContext2D, lines: LyricLine[], position: number, duration: number, options?: {font?: string; copyright?: string; readingBarWidth?: number; artwork?: CanvasImageSource; mode?: LyricsMode}): void;

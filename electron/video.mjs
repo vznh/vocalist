@@ -4,11 +4,11 @@ import { access, copyFile, rename, rm, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
-import { drawKaraoke } from '../shared/karaoke.mjs';
+import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas';
+import { drawKaraoke, VIDEO_WIDTH, VIDEO_HEIGHT } from '../shared/karaoke.mjs';
 import { validateLines, validateFont } from './timing.mjs';
 
-export async function exportVideo(track, output, settings, signal, progress = () => {}, { width = 1920, height = 1080, fps = 30 } = {}) {
+export async function exportVideo(track, output, settings, signal, progress = () => {}, { width = VIDEO_WIDTH, height = VIDEO_HEIGHT, fps = 30, mode = 'karaoke' } = {}) {
   signal?.throwIfAborted();
   validateLines(track.result?.lines, track.duration, { requireTiming: true });
   const font = validateFont(track.font || settings.font || 'Arial');
@@ -19,7 +19,10 @@ export async function exportVideo(track, output, settings, signal, progress = ()
   if (!GlobalFonts.has(font)) throw new Error(`${font} is not installed. Install it or choose another font before exporting.`);
   await access(track.audioPath);
   const canvas = createCanvas(width, height), ctx = canvas.getContext('2d');
-  ctx.scale(width / 1920, height / 1080);
+  ctx.scale(width / VIDEO_WIDTH, height / VIDEO_HEIGHT);
+  const artwork = track.artwork?.startsWith('data:image/jpeg;base64,')
+    ? await loadImage(Buffer.from(track.artwork.slice('data:image/jpeg;base64,'.length), 'base64')).catch(() => undefined)
+    : undefined;
   // Encode in session storage first. A cancelled render never damages an existing export.
   const temporary = path.join(track.directory, 'render.mp4');
   if ([temporary, track.audioPath].some(file => path.resolve(file) === path.resolve(output))) throw new Error('Choose an export destination outside the song’s working files.');
@@ -52,7 +55,7 @@ export async function exportVideo(track, output, settings, signal, progress = ()
     for (let frame = 0; frame < frames; frame++) {
       signal?.throwIfAborted();
       if (failure || child.exitCode !== null) throw failure || new Error(stderr || 'Video encoder stopped.');
-      drawKaraoke(ctx, track.result.lines, frame / fps, track.duration, { font, copyright: track.lyrics?.copyright || '' });
+      drawKaraoke(ctx, track.result.lines, frame / fps, track.duration, { font, mode, copyright: track.lyrics?.copyright || '', artwork });
       const pixels = ctx.getImageData(0, 0, width, height).data;
       const bytes = Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength);
       if (!child.stdin.write(bytes)) await once(child.stdin, 'drain', { signal });

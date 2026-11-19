@@ -1,3 +1,4 @@
+import { prepareArtwork, COVER_SOURCE_LIMIT } from './artwork.mjs';
 import { app, BrowserWindow, ipcMain, protocol, dialog, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,11 +54,24 @@ else {
     handle('room:timing', (id, input) => engine.saveTiming(id, input));
     handle('room:replaceLyrics', (id, text) => engine.replaceLyrics(id, text));
     const selectedTrack = id => { const track = engine.tracks.find(track => track.id === id); if (!track) throw new Error('Select a song first.'); return track; };
-    handle('room:export', async id => {
+    handle('room:cover', async id => {
+      const track = selectedTrack(id);
+      const result = await dialog.showOpenDialog(window, { title: 'Choose album cover', properties: ['openFile'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }] });
+      if (result.canceled) return;
+      const file = result.filePaths[0];
+      if ((await stat(file)).size > COVER_SOURCE_LIMIT) throw new Error('Choose an image smaller than 4 MB.');
+      const artwork = await prepareArtwork(await readFile(file));
+      if (engine.tracks.includes(track)) {
+        track.artwork = artwork;
+        engine.publish();
+      }
+    });
+    handle('room:export', async (id, mode = 'karaoke') => {
+      if (mode !== 'karaoke' && mode !== 'scrolling') throw new Error('Choose a lyrics mode.');
       const track = selectedTrack(id);
       const issue = exportIssue(track); if (issue) throw new Error(issue);
-      const result = await dialog.showSaveDialog(window, { title: 'Export karaoke video', defaultPath: `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}.mp4`, filters: [{ name: '1080p karaoke video', extensions: ['mp4'] }] });
-      return result.canceled ? null : engine.exportVideo(id, result.filePath);
+      const result = await dialog.showSaveDialog(window, { title: 'Export lyrics video', defaultPath: `${track.title.replace(/[^\w .-]/g, '').slice(0, 100) || 'karaoke'}.mp4`, filters: [{ name: '1080p karaoke video', extensions: ['mp4'] }] });
+      return result.canceled ? null : engine.exportVideo(id, result.filePath, mode);
     });
     handle('room:cancelExport', id => engine.cancelExport(id));
     handle('room:saveProject', async id => {

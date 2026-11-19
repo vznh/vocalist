@@ -1,3 +1,5 @@
+import type { LyricsMode } from '../shared/karaoke.mjs';
+
 export type Step = { state: 'waiting' | 'running' | 'done' | 'error' | 'review' | 'skipped'; message: string };
 export type TimedUnit = { text: string; start: number | null; end: number | null; loss?: number | null };
 export type LyricLine = { text: string; start: number | null; end: number | null; heard: string; agreement: number | null; review: boolean; timing: string; blockStart?: boolean; section?: string; words?: TimedUnit[] };
@@ -9,6 +11,9 @@ export type Track = {
   candidates: Candidate[]; lyrics: Candidate | null;
   transcript: { text: string; start: number; end: number }[];
   result: { source: string; timing: string; agreement: number | null; lines: LyricLine[]; notes: string[] } | null;
+  artwork?: string;
+  album?: string;
+  releaseYear?: number;
   primaryArtist?: string;
   featuredArtist?: string;
   overrides?: { artist?: string };
@@ -24,7 +29,8 @@ export type VocalistAPI = {
   retry(id: string): Promise<void>; retryLyrics(id: string): Promise<void>; selectLyrics(id: string, candidateId: number): Promise<void>;
   align(id: string): Promise<void>; saveTiming(id: string, input: {lines: LyricLine[]; font: string; reviewed: boolean}): Promise<void>;
   replaceLyrics(id: string, text: string): Promise<void>;
-  exportVideo(id: string): Promise<string | null>; cancelExport(id: string): Promise<void>;
+  chooseCover(id: string): Promise<void>;
+  exportVideo(id: string, mode?: LyricsMode): Promise<string | null>; cancelExport(id: string): Promise<void>;
   saveProject(id: string): Promise<string | null>; loadProject(id: string): Promise<boolean>;
   getSettings(): Promise<Settings>; saveSettings(settings: Settings): Promise<Settings>; check(): Promise<Dependency[]>;
   chooseModel(): Promise<string | null>; chooseCredentials(): Promise<string | null>; fullscreen(enabled: boolean): Promise<void>;
