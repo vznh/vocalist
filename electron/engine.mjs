@@ -6,7 +6,7 @@ import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { sourceUrl, sourceName, reconcile } from './core.mjs';
 import * as providers from './providers.mjs';
-import { writeDemo, demoLines } from './demo.mjs';
+import { writeDemo, demoTrack } from './demo.mjs';
 import { prepareLines, applyAlignment, repairReferenceTiming, validateLines, validateFont } from './timing.mjs';
 import { DEFAULT_FONT } from '../shared/karaoke.mjs';
 import { exportVideo } from './video.mjs';
@@ -90,8 +90,7 @@ export class QueueEngine extends EventEmitter {
     const id = randomUUID(), directory = path.join(this.root, id);
     await mkdir(directory, { recursive: true });
     const audioPath = path.join(directory, 'demo.wav'); await writeDemo(audioPath);
-    const lines = demoLines.map((text, i) => { const parts = text.match(/\S+\s*/g); return { text, blockStart: i === 0 || i === 4, words: parts.map((text, j) => ({ text, start: i * 4 + 3 + j * 4 / parts.length, end: i * 4 + 3 + (j + 1) * 4 / parts.length })), start: i * 4 + 3, end: i * 4 + 7, heard: '', agreement: null, review: false, timing: 'demo' }; });
-    this.tracks.push({ id, title: 'A little louder', artist: 'The vocalist demo', singer: 'Everyone', duration: 30, status: 'ready', steps: { audio: { state: 'done', message: 'Original synthesized instrumental' }, lyrics: { state: 'done', message: 'Illustrative original lyrics' }, transcript: { state: 'skipped', message: 'Demo fixture with no transcription' }, alignment: { state: 'skipped', message: 'Illustrative word timing' } }, candidates: [], lyrics: null, transcript: [], result: { source: 'demo', timing: 'demo', agreement: null, lines, notes: ['Original instrumental and illustrative timed lyrics. This demo does not run the YouTube or transcription pipeline.'] }, audioUrl: `norae-audio://track/${id}`, audioPath, directory, error: '', demo: true, font: DEFAULT_FONT, reviewed: false, export: { state: 'idle', progress: 0, message: '' } });
+    this.tracks.push(demoTrack({ id, audioPath, directory }));
     this.publish(); return id;
   }
   async prepareVoiceMix(id) {
